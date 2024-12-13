@@ -32,9 +32,10 @@ jobs:
         python -m pip install --upgrade pip
         pip install build wheel setuptools
         
-    - name: Install package
+    - name: Install package and dev dependencies
       run: |
         pip install -e ".[dev]"
+        pip install black isort flake8 mypy
         
     - name: Format with black
       run: |
@@ -47,8 +48,16 @@ jobs:
           git push origin HEAD:${{ github.head_ref }}
         fi
         
-    - name: Check imports with isort
-      run: isort --check-only feed_processor tests
+    - name: Sort imports with isort
+      run: |
+        if ! isort --check-only feed_processor tests; then
+          isort feed_processor tests
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          git add .
+          git commit -m "style: Sort imports with isort"
+          git push origin HEAD:${{ github.head_ref }}
+        fi
 
     - name: Lint with flake8
       run: flake8 feed_processor tests
