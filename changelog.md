@@ -267,6 +267,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Separate tracking of errors and warnings
   - Detailed validation status reporting
   - Improved error message clarity
+- Comprehensive load testing infrastructure
+  - Locust-based load testing scenarios
+  - Test data generation utilities
+  - Recovery testing framework
+  - Docker-based monitoring stack with Prometheus and Grafana
+- Test scenarios for baseline, normal, and peak loads
+- Recovery testing for network partitions, webhook failures, and memory pressure
+- Automated test execution scripts
 
 ### Changed
 - Optimized ContentQueue implementation
@@ -402,6 +410,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added proper token validation in FeedProcessor
 - Enhanced webhook payload security with standardized format
 
+## [1.0.1] - 2024-12-13
+
+### Added
+- Enhanced GitHub Actions workflows
+  - Added Prometheus service container for metrics testing
+  - Integrated load testing in CI pipeline
+  - Added automatic documentation building and deployment
+  - Improved code quality checks with black, isort, flake8, and mypy
+
+### Changed
+- Split test workflow into unit, integration, and load tests
+- Enhanced release process with documentation deployment
+- Improved CI pipeline with parallel job execution
+
+### Fixed
+- Resolved coverage report aggregation across test types
+- Fixed documentation deployment process
+- Corrected PyPI release workflow
+
 ## [1.0.0] - 2024-12-13
 
 ### Added
@@ -416,6 +443,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Prometheus metrics integration
 - Unit tests with pytest
 - GitHub Actions workflows for CI/CD
+- Implemented comprehensive metrics system using Prometheus
+  - Processing rate counter (`feed_processing_rate`)
+  - Queue size gauge (`feed_queue_size`)
+  - Processing latency histogram (`feed_processing_latency_seconds`)
+  - Webhook retry counter (`feed_webhook_retries_total`)
+  - Webhook payload size histogram (`feed_webhook_payload_size_bytes`)
+- Added metrics server with automatic port selection
+- Integrated load testing framework using Locust
+  - Performance testing scenarios
+  - Concurrent feed processing tests
+  - Webhook delivery stress tests
+  - Real-time metrics monitoring during tests
+
+### Changed
+- Improved metrics initialization with configurable port settings
+- Enhanced CLI interface with metrics command functionality
+- Updated documentation with metrics collection details
+
+### Fixed
+- Resolved port conflicts in metrics server initialization
+- Fixed thread safety issues in metrics collection
+- Corrected metric label consistency
 
 ### Features
 - Queue-based feed processing with configurable size

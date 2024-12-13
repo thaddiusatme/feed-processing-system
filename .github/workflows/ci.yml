@@ -13,6 +13,12 @@ jobs:
       matrix:
         python-version: ["3.12"]
 
+    services:
+      prometheus:
+        image: prom/prometheus:latest
+        ports:
+          - 9090:9090
+
     steps:
     - uses: actions/checkout@v4
     
@@ -27,9 +33,17 @@ jobs:
         pip install -r requirements.txt
         pip install -r requirements-dev.txt
         
-    - name: Run tests
+    - name: Run unit tests
       run: |
-        pytest -v --cov=feed_processor
+        pytest tests/unit -v --cov=feed_processor --cov-report=xml
+        
+    - name: Run integration tests
+      run: |
+        pytest tests/integration -v --cov=feed_processor --cov-report=xml --cov-append
+
+    - name: Run load tests
+      run: |
+        python tests/load_testing/run_load_tests.py --duration=30s --users=10
         
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v3
@@ -50,13 +64,17 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install black flake8 mypy
+        pip install flake8 black isort mypy
+        pip install -r requirements.txt
         
     - name: Check formatting with black
-      run: black --check .
-      
+      run: black --check feed_processor tests
+
+    - name: Check imports with isort
+      run: isort --check-only feed_processor tests
+
     - name: Lint with flake8
-      run: flake8 .
-      
+      run: flake8 feed_processor tests
+
     - name: Type check with mypy
-      run: mypy .
+      run: mypy feed_processor
