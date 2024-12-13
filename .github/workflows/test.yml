@@ -26,10 +26,15 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install -r requirements-dev.txt
+        python -m spacy download en_core_web_sm
         
-    - name: Run tests with pytest
+    - name: Run unit tests
       run: |
-        pytest tests/ --cov=feed_processor --cov-report=xml
+        python -m pytest tests/unit -v --cov=feed_processor --cov-report=xml
+        
+    - name: Run integration tests
+      run: |
+        python -m pytest tests/integration -v --cov=feed_processor --cov-report=xml --cov-append
         
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
