@@ -2,8 +2,9 @@ import pytest
 from unittest.mock import Mock, patch
 import time
 from datetime import datetime
+import threading
 
-from feed_processor.error_handling import ErrorHandler, ErrorCategory, ErrorSeverity, CircuitBreaker
+from feed_processor.error_handling import ErrorHandler, ErrorCategory, ErrorSeverity, CircuitBreaker, RetryWithExponentialBackoff
 from feed_processor.webhook_manager import WebhookManager
 
 
@@ -99,3 +100,50 @@ class TestWebhookErrorHandling:
 
             # Verify retry count based on time of day
             assert error_handler._get_max_retries(hour) == expected_retries
+
+def test_webhook_retry_mechanism():
+    manager = WebhookManager()
+    retries = 3
+    
+    with patch.object(manager, '_send_webhook', side_effect=Exception("Test error")):
+        with pytest.raises(Exception):
+            manager.send_webhook("http://test.com", {"data": "test"}, max_retries=retries)
+            
+    assert manager.retry_count["http://test.com"] == retries
+
+def test_concurrent_webhook_retries():
+    manager = WebhookManager()
+    webhook_url = "http://test.com"
+    expected_retries = 3
+    
+    def simulate_webhook_failure():
+        try:
+            manager.send_webhook(webhook_url, {"data": "test"}, max_retries=expected_retries)
+        except Exception:
+            pass
+    
+    threads = []
+    for _ in range(3):
+        thread = threading.Thread(target=simulate_webhook_failure)
+        threads.append(thread)
+        thread.start()
+    
+    for thread in threads:
+        thread.join()
+    
+    assert manager.retry_count[webhook_url] == expected_retries
+
+def test_webhook_backoff_timing():
+    manager = WebhookManager()
+    start_time = datetime.now()
+    retries = 2
+    
+    with patch.object(manager, '_send_webhook', side_effect=Exception("Test error")):
+        with pytest.raises(Exception):
+            manager.send_webhook("http://test.com", {"data": "test"}, max_retries=retries)
+    
+    end_time = datetime.now()
+    duration = (end_time - start_time).total_seconds()
+    
+    # With 2 retries and exponential backoff (1s, 2s), minimum duration should be ~3s
+    assert duration >= 3

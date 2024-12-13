@@ -1,3 +1,4 @@
+"""Command line interface for the feed processor."""
 import click
 import json
 import sys
@@ -110,7 +111,9 @@ def cli():
 @click.option(
     "--config", "-c", type=click.Path(exists=True, path_type=Path), help="Path to config file"
 )
-def start(config):
+@click.option("--port", type=int, default=8000, help="Port to run API server on")
+@click.option("--metrics-port", type=int, default=9090, help="Port to expose metrics on")
+def start(config, port, metrics_port):
     """Start the feed processor."""
     try:
         cfg = load_config(config)
@@ -132,9 +135,12 @@ def start(config):
         # Start API server
         api_thread = start_api_server(
             host="localhost",
-            port=8000,  # Use default port 8000 for API
+            port=port,  # Use default port 8000 for API
             processor_instance=processor,
         )
+
+        # Start metrics server
+        start_metrics_server(metrics_port)
 
         # Keep the main thread running
         try:
