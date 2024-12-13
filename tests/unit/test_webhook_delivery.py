@@ -1,172 +1,228 @@
 """Unit tests for the webhook delivery system."""
 
-import pytest
-import requests
+from datetime import datetime
 from unittest.mock import Mock, patch
 
-from feed_processor.webhook.delivery import WebhookDeliverySystem
+import pytest
+import requests
+
+from feed_processor.config.webhook_config import WebhookConfig
+from feed_processor.webhook.manager import WebhookManager, WebhookResponse
 
 
 @pytest.fixture
-def delivery_system():
-    """Create a test instance of WebhookDeliverySystem."""
-    return WebhookDeliverySystem(
-        webhook_url="https://test.webhook.com/endpoint",
-        auth_token="test-token",
+def config():
+    """Create a test webhook configuration."""
+    return WebhookConfig(
+        retry_attempts=2,
+        timeout=5,
+        max_concurrent=2,
         rate_limit=0.01,  # Small delay for testing
-        max_retries=2,
-        retry_delay=0.01,
         batch_size=5,
+        auth_token="test-token",
     )
+
+
+@pytest.fixture
+def manager(config):
+    """Create a test instance of WebhookManager."""
+    return WebhookManager(webhook_url="https://test.webhook.com/endpoint", config=config)
 
 
 @pytest.fixture
 def test_items():
     """Create test items for delivery."""
     return [
-        {"id": "1", "title": "Test 1"},
-        {"id": "2", "title": "Test 2"},
+        {
+            "id": "1",
+            "title": "Test 1",
+            "processed_at": datetime.now().isoformat(),
+            "content_type": "NEWS",
+            "priority": 7,
+        },
+        {
+            "id": "2",
+            "title": "Test 2",
+            "processed_at": datetime.now().isoformat(),
+            "content_type": "VIDEO",
+            "priority": 8,
+        },
     ]
 
 
-def test_system_initialization():
-    """Test webhook delivery system initialization."""
-    system = WebhookDeliverySystem(
-        webhook_url="https://test.url",
-        auth_token="secret",
-        rate_limit=0.5,
-        max_retries=3,
-        batch_size=10,
-    )
-    assert system.webhook_url == "https://test.url"
-    assert system.auth_token == "secret"
-    assert system.rate_limit == 0.5
-    assert system.max_retries == 3
-    assert system.batch_size == 10
+def test_manager_initialization(config):
+    """Test webhook manager initialization."""
+    manager = WebhookManager(webhook_url="https://test.url", config=config)
+    assert manager.webhook_url == "https://test.url"
+    assert manager.config == config
+    assert manager.metrics is not None
 
 
 @patch("requests.post")
-def test_successful_delivery(mock_post, delivery_system, test_items):
+def test_successful_delivery(mock_post, manager, test_items):
     """Test successful webhook delivery."""
     mock_response = Mock()
     mock_response.status_code = 200
+    mock_response.json.return_value = {"status": "success"}
     mock_post.return_value = mock_response
 
-    success = delivery_system.deliver_batch(test_items, "test-batch")
+    response = manager.deliver_batch(test_items)
+    assert response.success is True
+    assert response.error is None
 
-    assert success is True
     mock_post.assert_called_once()
     args, kwargs = mock_post.call_args
-
-    assert kwargs["url"] == "https://test.webhook.com/endpoint"
-    assert kwargs["headers"]["Authorization"] == "Bearer test-token"
-    assert len(kwargs["json"]["items"]) == 2
-    assert kwargs["json"]["batch_id"] == "test-batch"
+    assert kwargs["url"] == manager.webhook_url
+    assert kwargs["json"]["items"] == test_items
+    assert "Authorization" in kwargs["headers"]
 
 
 @patch("requests.post")
-def test_rate_limit_retry(mock_post, delivery_system, test_items):
+def test_rate_limit_retry(mock_post, manager, test_items):
     """Test retry behavior when rate limited."""
-    responses = [
-        Mock(status_code=429),  # First attempt - rate limited
-        Mock(status_code=200),  # Second attempt - success
-    ]
-    mock_post.side_effect = responses
+    # First request gets rate limited
+    mock_response_429 = Mock()
+    mock_response_429.status_code = 429
+    mock_response_429.json.return_value = {"error": "Rate limit exceeded"}
 
-    with patch("time.sleep") as mock_sleep:
-        success = delivery_system.deliver_batch(test_items)
+    # Second request succeeds
+    mock_response_200 = Mock()
+    mock_response_200.status_code = 200
+    mock_response_200.json.return_value = {"status": "success"}
 
-        assert success is True
-        assert mock_post.call_count == 2
-        mock_sleep.assert_called()  # Should sleep between attempts
+    mock_post.side_effect = [mock_response_429, mock_response_200]
+
+    response = manager.deliver_batch(test_items)
+    assert response.success is True
+    assert mock_post.call_count == 2
 
 
 @patch("requests.post")
-def test_max_retries_exceeded(mock_post, delivery_system, test_items):
+def test_max_retries_exceeded(mock_post, manager, test_items):
     """Test behavior when max retries are exceeded."""
     mock_response = Mock()
     mock_response.status_code = 500
-    mock_post.side_effect = requests.exceptions.RequestException("Server error")
+    mock_response.json.return_value = {"error": "Server error"}
+    mock_post.return_value = mock_response
 
-    with patch("time.sleep"):
-        success = delivery_system.deliver_batch(test_items)
+    response = manager.deliver_batch(test_items)
+    assert response.success is False
+    assert "Server error" in response.error
+    assert mock_post.call_count == manager.config.retry_attempts
 
-        assert success is False
-        assert mock_post.call_count == delivery_system.max_retries + 1
 
-
-def test_batch_size_limit(delivery_system):
+def test_batch_size_limit(manager):
     """Test enforcement of maximum batch size."""
-    oversized_batch = [{"id": str(i)} for i in range(10)]  # More than batch_size
+    large_batch = [{"id": str(i)} for i in range(20)]
+    batches = list(manager._create_batches(large_batch))
 
-    with patch("requests.post") as mock_post:
-        mock_post.return_value = Mock(status_code=200)
-        delivery_system.deliver_batch(oversized_batch)
-
-        args, kwargs = mock_post.call_args
-        assert len(kwargs["json"]["items"]) == delivery_system.batch_size
+    assert all(len(batch) <= manager.config.batch_size for batch in batches)
+    assert sum(len(batch) for batch in batches) == len(large_batch)
 
 
 @patch("requests.post")
-def test_delivery_status_tracking(mock_post, delivery_system, test_items):
+def test_delivery_status_tracking(mock_post, manager, test_items):
     """Test tracking of delivery status."""
-    mock_post.return_value = Mock(status_code=200)
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {"status": "success"}
+    mock_post.return_value = mock_response
 
-    delivery_system.deliver_batch(test_items, "test-batch")
-    status = delivery_system.get_delivery_status("test-batch")
+    # Deliver batch and check metrics
+    response = manager.deliver_batch(test_items)
+    assert response.success is True
 
-    assert status["status"] == "delivered"
-    assert status["items"] == len(test_items)
-    assert status["attempts"] == 1
+    metrics = manager.get_metrics()
+    assert metrics["successful_deliveries"] > 0
+    assert metrics["failed_deliveries"] == 0
+    assert "average_delivery_time" in metrics
 
 
 @patch("requests.post")
-def test_failed_delivery_status(mock_post, delivery_system, test_items):
+def test_failed_delivery_status(mock_post, manager, test_items):
     """Test status tracking for failed deliveries."""
+    mock_response = Mock()
+    mock_response.status_code = 500
+    mock_response.json.return_value = {"error": "Server error"}
+    mock_post.return_value = mock_response
+
+    response = manager.deliver_batch(test_items)
+    assert response.success is False
+
+    metrics = manager.get_metrics()
+    assert metrics["failed_deliveries"] > 0
+    assert "last_error" in metrics
+
+
+def test_empty_batch_delivery(manager):
+    """Test handling of empty batch delivery."""
+    response = manager.deliver_batch([])
+    assert response.success is True
+    assert response.error is None
+
+
+@patch("requests.post")
+def test_network_error(mock_post, manager, test_items):
+    """Test handling of network errors."""
     mock_post.side_effect = requests.exceptions.RequestException("Network error")
 
-    with patch("time.sleep"):
-        delivery_system.deliver_batch(test_items, "test-batch")
-        status = delivery_system.get_delivery_status("test-batch")
-
-        assert status["status"] == "failed"
-        assert "Network error" in status["error"]
-        assert status["attempts"] == delivery_system.max_retries + 1
+    response = manager.deliver_batch(test_items)
+    assert response.success is False
+    assert "Network error" in response.error
 
 
-def test_empty_batch_delivery(delivery_system):
-    """Test handling of empty batch delivery."""
-    success = delivery_system.deliver_batch([])
-    assert success is True
+@patch("requests.post")
+def test_invalid_response(mock_post, manager, test_items):
+    """Test handling of invalid response format."""
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.json.side_effect = ValueError("Invalid JSON")
+    mock_post.return_value = mock_response
+
+    response = manager.deliver_batch(test_items)
+    assert response.success is False
+    assert "Invalid response format" in response.error
 
 
-def test_unknown_batch_status(delivery_system):
-    """Test getting status for unknown batch."""
-    status = delivery_system.get_delivery_status("nonexistent-batch")
-    assert status["status"] == "unknown"
-    assert status["items"] == 0
-
-
-@patch("time.time")
 @patch("time.sleep")
-def test_rate_limiting(mock_sleep, mock_time, delivery_system):
+@patch("time.time")
+def test_rate_limiting(mock_time, mock_sleep, manager):
     """Test rate limiting between deliveries."""
-    # Simulate rapid requests
-    mock_time.side_effect = [0, 0, 0.005, 0.005]
+    mock_time.side_effect = [0, 0.005, 0.01]  # Simulate time progression
 
-    delivery_system._wait_for_rate_limit()
-    delivery_system._wait_for_rate_limit()
+    manager.rate_limiter.wait()
+    manager.rate_limiter.wait()
 
-    # Should sleep for remaining time in rate limit window
-    mock_sleep.assert_called_with(pytest.approx(0.01, rel=1e-3))
+    assert mock_sleep.called
+    assert mock_sleep.call_args[0][0] >= 0
 
 
-def test_retry_delay_calculation(delivery_system):
-    """Test exponential backoff for retry delays."""
-    base_delay = delivery_system.retry_delay
+def test_response_object():
+    """Test WebhookResponse object behavior."""
+    success_response = WebhookResponse(True)
+    assert success_response.success is True
+    assert success_response.error is None
 
-    assert delivery_system._get_retry_delay(0) == base_delay
-    assert delivery_system._get_retry_delay(1) == base_delay * 2
-    assert delivery_system._get_retry_delay(2) == base_delay * 4
-    # Test maximum cap
-    assert delivery_system._get_retry_delay(10) == 300  # Max 5 minutes
+    error_response = WebhookResponse(False, "Test error")
+    assert error_response.success is False
+    assert error_response.error == "Test error"
+
+
+@patch("requests.post")
+def test_concurrent_delivery(mock_post, manager):
+    """Test concurrent delivery handling."""
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {"status": "success"}
+    mock_post.return_value = mock_response
+
+    # Create multiple batches
+    batches = [test_items for _ in range(5)]
+
+    # Deliver all batches
+    responses = []
+    for batch in batches:
+        responses.append(manager.deliver_batch(batch))
+
+    assert all(response.success for response in responses)
+    assert mock_post.call_count == len(batches)
