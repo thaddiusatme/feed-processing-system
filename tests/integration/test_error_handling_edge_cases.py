@@ -6,11 +6,8 @@ from unittest.mock import patch, MagicMock
 from contextlib import contextmanager
 from typing import Generator, Any
 
-from feed_processor.error_handling import (
-    ErrorHandler,
-    ErrorCategory,
-    ErrorSeverity
-)
+from feed_processor.error_handling import ErrorHandler, ErrorCategory, ErrorSeverity
+
 
 class NetworkPartitionSimulator:
     def __init__(self):
@@ -33,6 +30,7 @@ class NetworkPartitionSimulator:
             raise socket.error("Network unreachable")
         return self._original_socket(*args, **kwargs)
 
+
 class TestErrorHandlingEdgeCases:
     @pytest.fixture
     def error_handler(self):
@@ -48,11 +46,11 @@ class TestErrorHandlingEdgeCases:
         """Test system behavior during network partition"""
         # Step 1: Normal operation
         self._verify_normal_operation(error_handler)
-        
+
         # Step 2: Simulate network partition
         network_partition.start()
         partition_errors = []
-        
+
         for _ in range(5):
             try:
                 self._make_external_call()
@@ -63,17 +61,17 @@ class TestErrorHandlingEdgeCases:
                         category=ErrorCategory.NETWORK_ERROR,
                         severity=ErrorSeverity.HIGH,
                         service="external_api",
-                        details={"state": "partition"}
+                        details={"state": "partition"},
                     )
                 )
-        
+
         assert len(partition_errors) == 5
         assert error_handler._get_circuit_breaker("external_api").state == "open"
-        
+
         # Step 3: Recover from partition
         network_partition.stop()
         time.sleep(error_handler._get_circuit_breaker("external_api").reset_timeout)
-        
+
         # Step 4: Verify recovery
         self._verify_normal_operation(error_handler)
 
@@ -82,6 +80,7 @@ class TestErrorHandlingEdgeCases:
         with patch("psycopg2.connect") as mock_connect:
             # Simulate intermittent failures
             failure_count = 0
+
             def flaky_connect(*args, **kwargs):
                 nonlocal failure_count
                 failure_count += 1
@@ -90,7 +89,7 @@ class TestErrorHandlingEdgeCases:
                 return MagicMock()
 
             mock_connect.side_effect = flaky_connect
-            
+
             # Test connection retry logic
             for _ in range(10):
                 try:
@@ -101,9 +100,9 @@ class TestErrorHandlingEdgeCases:
                         category=ErrorCategory.DATABASE_ERROR,
                         severity=ErrorSeverity.HIGH,
                         service="database",
-                        details={"attempt": failure_count}
+                        details={"attempt": failure_count},
                     )
-            
+
             # Verify error handling
             metrics = error_handler.get_error_metrics()
             assert metrics["errors_by_category"][ErrorCategory.DATABASE_ERROR.value] == 5
@@ -112,7 +111,7 @@ class TestErrorHandlingEdgeCases:
         """Test system behavior during partial component failures"""
         components = ["api", "database", "cache", "queue"]
         failed_components = set()
-        
+
         def component_operation(component: str) -> bool:
             if component in failed_components:
                 raise Exception(f"{component} failure")
@@ -120,7 +119,7 @@ class TestErrorHandlingEdgeCases:
 
         # Simulate partial system failure
         failed_components.update(["cache", "queue"])
-        
+
         # Test system operation with partial failures
         for component in components:
             try:
@@ -131,15 +130,15 @@ class TestErrorHandlingEdgeCases:
                     category=ErrorCategory.SYSTEM_ERROR,
                     severity=ErrorSeverity.HIGH,
                     service=component,
-                    details={"state": "degraded"}
+                    details={"state": "degraded"},
                 )
-        
+
         # Verify system state
         circuit_states = {
             component: error_handler._get_circuit_breaker(component).state
             for component in components
         }
-        
+
         assert circuit_states["api"] == "closed"
         assert circuit_states["database"] == "closed"
         assert circuit_states["cache"] == "open"
@@ -158,21 +157,15 @@ class TestErrorHandlingEdgeCases:
                         category=ErrorCategory.SYSTEM_ERROR,
                         severity=ErrorSeverity.CRITICAL,
                         service="core_system",
-                        details={"state": "failed"}
+                        details={"state": "failed"},
                     )
-        
+
         # Step 2: Verify all circuits are open
-        assert all(
-            cb.state == "open"
-            for cb in error_handler.circuit_breakers.values()
-        )
-        
+        assert all(cb.state == "open" for cb in error_handler.circuit_breakers.values())
+
         # Step 3: Begin recovery
-        time.sleep(max(
-            cb.reset_timeout
-            for cb in error_handler.circuit_breakers.values()
-        ))
-        
+        time.sleep(max(cb.reset_timeout for cb in error_handler.circuit_breakers.values()))
+
         # Step 4: Verify recovery
         recovery_success = 0
         for _ in range(5):
@@ -185,14 +178,11 @@ class TestErrorHandlingEdgeCases:
                     category=ErrorCategory.SYSTEM_ERROR,
                     severity=ErrorSeverity.HIGH,
                     service="core_system",
-                    details={"state": "recovering"}
+                    details={"state": "recovering"},
                 )
-        
+
         assert recovery_success > 0
-        assert any(
-            cb.state == "closed"
-            for cb in error_handler.circuit_breakers.values()
-        )
+        assert any(cb.state == "closed" for cb in error_handler.circuit_breakers.values())
 
     @contextmanager
     def _simulate_catastrophic_failure(self) -> Generator[None, None, None]:
@@ -201,13 +191,9 @@ class TestErrorHandlingEdgeCases:
             "socket.socket",
             connect=MagicMock(side_effect=socket.error),
             send=MagicMock(side_effect=socket.error),
-            recv=MagicMock(side_effect=socket.error)
-        ), patch(
-            "psycopg2.connect",
-            side_effect=Exception("Database unreachable")
-        ), patch(
-            "redis.Redis",
-            side_effect=Exception("Cache unreachable")
+            recv=MagicMock(side_effect=socket.error),
+        ), patch("psycopg2.connect", side_effect=Exception("Database unreachable")), patch(
+            "redis.Redis", side_effect=Exception("Cache unreachable")
         ):
             yield
 
@@ -222,7 +208,7 @@ class TestErrorHandlingEdgeCases:
                 category=ErrorCategory.SYSTEM_ERROR,
                 severity=ErrorSeverity.HIGH,
                 service="system_check",
-                details={"state": "checking"}
+                details={"state": "checking"},
             )
             return False
 
@@ -233,6 +219,7 @@ class TestErrorHandlingEdgeCases:
     def _db_operation(self) -> Any:
         """Simulate database operation"""
         import psycopg2
+
         conn = psycopg2.connect("dbname=test")
         return conn
 

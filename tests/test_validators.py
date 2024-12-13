@@ -2,6 +2,7 @@ import unittest
 from datetime import datetime
 from feed_processor.validators import FeedValidator, FeedValidationResult
 
+
 class TestFeedValidator(unittest.TestCase):
     def setUp(self):
         self.rss_feed = """<?xml version="1.0" encoding="UTF-8" ?>
@@ -56,23 +57,23 @@ class TestFeedValidator(unittest.TestCase):
     def test_validate_rss_feed(self):
         result = FeedValidator.validate_feed(self.rss_feed)
         self.assertTrue(result.is_valid)
-        self.assertEqual(result.feed_type, 'rss')
+        self.assertEqual(result.feed_type, "rss")
         self.assertIsNotNone(result.parsed_feed)
-        self.assertEqual(result.parsed_feed['title'], 'Sample RSS Feed')
+        self.assertEqual(result.parsed_feed["title"], "Sample RSS Feed")
 
     def test_validate_atom_feed(self):
         result = FeedValidator.validate_feed(self.atom_feed)
         self.assertTrue(result.is_valid)
-        self.assertEqual(result.feed_type, 'atom')
+        self.assertEqual(result.feed_type, "atom")
         self.assertIsNotNone(result.parsed_feed)
-        self.assertEqual(result.parsed_feed['title'], 'Sample Atom Feed')
+        self.assertEqual(result.parsed_feed["title"], "Sample Atom Feed")
 
     def test_validate_json_feed(self):
         result = FeedValidator.validate_feed(self.json_feed)
         self.assertTrue(result.is_valid)
-        self.assertEqual(result.feed_type, 'json')
+        self.assertEqual(result.feed_type, "json")
         self.assertIsNotNone(result.parsed_feed)
-        self.assertEqual(result.parsed_feed['title'], 'Sample JSON Feed')
+        self.assertEqual(result.parsed_feed["title"], "Sample JSON Feed")
 
     def test_validate_invalid_feed(self):
         result = FeedValidator.validate_feed(self.invalid_feed)
@@ -88,18 +89,19 @@ class TestFeedValidator(unittest.TestCase):
             <description>Missing link field</description>
         </channel>
         </rss>"""
-        
+
         result = FeedValidator.validate_feed(invalid_rss)
         self.assertFalse(result.is_valid)
-        self.assertEqual(result.feed_type, 'rss')
-        self.assertIn('Missing required fields', result.error_message)
+        self.assertEqual(result.feed_type, "rss")
+        self.assertIn("Missing required fields", result.error_message)
 
     def test_normalize_dates(self):
         result = FeedValidator.validate_feed(self.rss_feed)
-        self.assertIsInstance(result.parsed_feed['updated'], datetime)
-        
-        result = FeedValidator.validate_feed(self.atom_feed)
-        self.assertIsInstance(result.parsed_feed['updated'], datetime)
+        self.assertIsInstance(result.parsed_feed["updated"], datetime)
 
-if __name__ == '__main__':
+        result = FeedValidator.validate_feed(self.atom_feed)
+        self.assertIsInstance(result.parsed_feed["updated"], datetime)
+
+
+if __name__ == "__main__":
     unittest.main()
