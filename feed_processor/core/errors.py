@@ -400,31 +400,37 @@ class BaseError(Exception):
 
 class FeedProcessingError(BaseError):
     """Use this error when feed processing operations fail."""
+
     pass
 
 
 class WebhookError(BaseError):
     """Use this error when webhook delivery fails."""
+
     pass
 
 
 class ValidationError(BaseError):
     """Use this error when data validation fails."""
+
     pass
 
 
 class RateLimitError(BaseError):
     """Use this error when rate limits are exceeded."""
+
     pass
 
 
 class NetworkError(BaseError):
     """Use this error when network operations fail."""
+
     pass
 
 
 class ConfigurationError(BaseError):
     """Use this error when configuration is invalid."""
+
     pass
 
 
@@ -442,6 +448,7 @@ def handle_errors(
         service: Service name for circuit breaking
         error_handler: Optional custom error handler
     """
+
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
