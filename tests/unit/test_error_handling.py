@@ -1,15 +1,12 @@
-import pytest
 import time
 from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
-from feed_processor.error_handling import (
-    CircuitBreaker,
-    ErrorHandler,
-    ErrorSeverity,
-    ErrorCategory,
-    ErrorContext,
-)
+import pytest
+
+from feed_processor.error_handling import (CircuitBreaker, ErrorCategory,
+                                           ErrorContext, ErrorHandler,
+                                           ErrorSeverity)
 
 
 class TestCircuitBreaker:

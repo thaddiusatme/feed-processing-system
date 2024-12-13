@@ -1,11 +1,13 @@
-import pytest
-from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime, timezone
 import time
+from datetime import datetime, timezone
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 import requests
+
+from feed_processor.content_queue import ContentQueue
 from feed_processor.processor import FeedProcessor
 from feed_processor.webhook_manager import WebhookResponse
-from feed_processor.content_queue import ContentQueue
 
 
 @pytest.fixture

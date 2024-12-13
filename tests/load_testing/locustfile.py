@@ -2,8 +2,9 @@
 
 import json
 import random
-from locust import HttpUser, task, between
+
 from data_generator import generate_test_feed
+from locust import HttpUser, between, task
 
 
 class FeedProcessingUser(HttpUser):

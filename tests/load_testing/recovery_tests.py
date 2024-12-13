@@ -1,10 +1,11 @@
 """Recovery test scenarios for the feed processing system."""
 
-import time
 import subprocess
-import psutil
+import time
+from typing import Any, Callable, Dict
+
 import docker
-from typing import Callable, Dict, Any
+import psutil
 
 
 class RecoveryTest:

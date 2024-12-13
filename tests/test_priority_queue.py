@@ -1,6 +1,8 @@
-import pytest
 from datetime import datetime, timezone
-from feed_processor.priority_queue import PriorityQueue, Priority, QueueItem
+
+import pytest
+
+from feed_processor.priority_queue import Priority, PriorityQueue, QueueItem
 
 
 class TestPriorityQueue:

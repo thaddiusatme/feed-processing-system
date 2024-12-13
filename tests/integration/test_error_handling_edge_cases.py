@@ -1,12 +1,14 @@
-import pytest
 import socket
 import threading
 import time
-from unittest.mock import patch, MagicMock
 from contextlib import contextmanager
-from typing import Generator, Any
+from typing import Any, Generator
+from unittest.mock import MagicMock, patch
 
-from feed_processor.error_handling import ErrorHandler, ErrorCategory, ErrorSeverity
+import pytest
+
+from feed_processor.error_handling import (ErrorCategory, ErrorHandler,
+                                           ErrorSeverity)
 
 
 class NetworkPartitionSimulator:

@@ -1,12 +1,13 @@
-import pytest
-from unittest.mock import Mock, patch
+import threading
 import time
 from datetime import datetime
-import threading
+from unittest.mock import Mock, patch
 
+import pytest
+
+from feed_processor.content_queue import ContentQueue, QueueItem
 from feed_processor.processor import FeedProcessor
 from feed_processor.webhook_manager import WebhookManager, WebhookResponse
-from feed_processor.content_queue import ContentQueue, QueueItem
 
 
 @pytest.fixture

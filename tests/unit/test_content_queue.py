@@ -1,6 +1,8 @@
-import pytest
-from datetime import datetime, timedelta
 import time
+from datetime import datetime, timedelta
+
+import pytest
+
 from feed_processor.content_queue import ContentQueue, QueuedContent
 
 

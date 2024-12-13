@@ -1,29 +1,23 @@
-import click
-import json
-import sys
-import time
-from typing import Optional
-from pathlib import Path
-from prometheus_client import CollectorRegistry, generate_latest
-import re
-from urllib.parse import urlparse
-import threading
 import asyncio
+import json
+import re
+import sys
+import threading
+import time
 from functools import wraps
+from pathlib import Path
+from typing import Optional
+from urllib.parse import urlparse
 
+import click
+from prometheus_client import CollectorRegistry, generate_latest
+
+from .metrics import (PROCESSING_LATENCY, PROCESSING_RATE, QUEUE_OVERFLOWS,
+                      QUEUE_SIZE, RATE_LIMIT_DELAY, WEBHOOK_PAYLOAD_SIZE,
+                      WEBHOOK_RETRIES, start_metrics_server)
 from .processor import FeedProcessor
-from .webhook import WebhookConfig
 from .validator import FeedValidator
-from .metrics import (
-    PROCESSING_RATE,
-    QUEUE_SIZE,
-    PROCESSING_LATENCY,
-    WEBHOOK_RETRIES,
-    WEBHOOK_PAYLOAD_SIZE,
-    RATE_LIMIT_DELAY,
-    QUEUE_OVERFLOWS,
-    start_metrics_server,
-)
+from .webhook import WebhookConfig
 
 
 def load_config(config_path: Optional[Path] = None) -> dict:
@@ -262,9 +256,10 @@ async def validate(feed_file, strict, format, cache, cache_ttl):
 def validate_old(feed_file):
     """Validate an RSS feed file without processing it."""
     try:
-        import feedparser
-        from urllib.parse import urlparse
         from email.utils import parsedate_tz
+        from urllib.parse import urlparse
+
+        import feedparser
 
         with open(feed_file, "r") as f:
             feed_content = f.read()
@@ -346,9 +341,10 @@ def metrics(config):
 def validate_old(feed_file):
     """Validate an RSS feed file without processing it."""
     try:
-        import feedparser
-        from urllib.parse import urlparse
         from email.utils import parsedate_tz
+        from urllib.parse import urlparse
+
+        import feedparser
 
         with open(feed_file, "r") as f:
             feed_content = f.read()

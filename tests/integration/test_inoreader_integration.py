@@ -1,10 +1,12 @@
-import pytest
 import os
 import time
-from unittest.mock import patch
 from datetime import datetime, timedelta
+from unittest.mock import patch
 
-from feed_processor.error_handling import ErrorHandler, ErrorCategory, ErrorSeverity
+import pytest
+
+from feed_processor.error_handling import (ErrorCategory, ErrorHandler,
+                                           ErrorSeverity)
 
 
 class TestInoreaderIntegration:

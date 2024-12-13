@@ -1,11 +1,13 @@
-import pytest
+import random
 import threading
 import time
-import random
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
-from feed_processor.error_handling import ErrorHandler, ErrorCategory, ErrorSeverity, CircuitBreaker
+import pytest
+
+from feed_processor.error_handling import (CircuitBreaker, ErrorCategory,
+                                           ErrorHandler, ErrorSeverity)
 
 
 class TestErrorHandlingStress:
@@ -156,8 +158,8 @@ class TestErrorHandlingStress:
 
     def test_memory_usage_under_load(self, error_handler):
         """Test memory usage with large error payloads"""
-        import sys
         import gc
+        import sys
 
         initial_memory = self._get_memory_usage()
         large_data = "x" * 1000000  # 1MB string
