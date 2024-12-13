@@ -3,6 +3,8 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.so
+
+# Distribution / packaging
 .Python
 build/
 develop-eggs/
@@ -37,11 +39,13 @@ ENV/
 logs/
 *.log
 
+# Documentation
+docs/_build/
+
 # Testing
 .coverage
-.pytest_cache/
 htmlcov/
+.pytest_cache/
 
-# Distribution
-dist/
-build/
+# macOS
+.DS_Store
