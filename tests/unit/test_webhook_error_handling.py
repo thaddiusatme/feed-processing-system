@@ -1,12 +1,11 @@
+import threading
 import time
 from datetime import datetime
 from unittest.mock import patch
-import threading
 
 import pytest
 
-from feed_processor.error_handling import (ErrorCategory, ErrorHandler,
-                                         ErrorSeverity)
+from feed_processor.error_handling import ErrorCategory, ErrorHandler, ErrorSeverity
 from feed_processor.webhook_manager import WebhookManager
 
 
@@ -97,7 +96,7 @@ class TestWebhookErrorHandling:
                 severity=ErrorSeverity.MEDIUM,
                 service="webhook",
                 details={"test": True},
-                max_retries=max_retries
+                max_retries=max_retries,
             )
 
             assert error_handler.get_retry_count("webhook") == max_retries
