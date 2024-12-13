@@ -45,16 +45,30 @@ def load_config(config_path: Optional[Path] = None) -> dict:
 def print_metrics():
     """Print current metrics in a human-readable format."""
     try:
-        metrics = {
-            'Processing Rate (feeds/sec)': PROCESSING_RATE._value.get(),
-            'Queue Size': QUEUE_SIZE._value.get(),
-            'Average Latency (ms)': PROCESSING_LATENCY._sum.get() / max(PROCESSING_LATENCY._count.get(), 1),
-            'Webhook Retries': WEBHOOK_RETRIES._value.get(),
-            'Average Payload Size (bytes)': WEBHOOK_PAYLOAD_SIZE._sum.get() / max(WEBHOOK_PAYLOAD_SIZE._count.get(), 1),
-            'Current Rate Limit Delay (sec)': RATE_LIMIT_DELAY._value.get(),
-            'Queue Overflows': QUEUE_OVERFLOWS._value.get()
-        }
+        # Get the metrics
+        metrics = {}
         
+        # Simple metrics
+        metrics['Processing Rate (feeds/sec)'] = PROCESSING_RATE._value.get()
+        metrics['Queue Size'] = QUEUE_SIZE._value.get()
+        metrics['Webhook Retries'] = WEBHOOK_RETRIES._value.get()
+        metrics['Current Rate Limit Delay (sec)'] = RATE_LIMIT_DELAY._value.get()
+        metrics['Queue Overflows'] = QUEUE_OVERFLOWS._value.get()
+        
+        # Histogram metrics
+        if PROCESSING_LATENCY._sum.get() > 0:
+            metrics['Average Latency (ms)'] = (PROCESSING_LATENCY._sum.get() / 
+                                             max(len(PROCESSING_LATENCY._buckets), 1) * 1000)
+        else:
+            metrics['Average Latency (ms)'] = 0.0
+            
+        if WEBHOOK_PAYLOAD_SIZE._sum.get() > 0:
+            metrics['Average Payload Size (bytes)'] = (WEBHOOK_PAYLOAD_SIZE._sum.get() / 
+                                                     max(len(WEBHOOK_PAYLOAD_SIZE._buckets), 1))
+        else:
+            metrics['Average Payload Size (bytes)'] = 0.0
+        
+        # Print the metrics
         click.echo("\nCurrent Metrics:")
         click.echo("-" * 50)
         for name, value in metrics.items():
@@ -94,27 +108,35 @@ def start(config):
             max_queue_size=cfg['max_queue_size'],
             webhook_endpoint=cfg['webhook_endpoint'],
             webhook_auth_token=cfg['webhook_auth_token'],
-            webhook_batch_size=cfg['webhook_batch_size']
+            webhook_batch_size=cfg['webhook_batch_size'],
+            metrics_port=cfg['metrics_port']
         )
         
-        click.echo("Starting feed processor...")
+        # Import here to avoid circular imports
+        from .api import start_api_server
+        
+        click.echo("Starting feed processor and API server...")
         processor.start()
         
-        metrics_thread = threading.Thread(target=start_metrics_server, args=(cfg['metrics_port'],))
-        metrics_thread.daemon = True
-        metrics_thread.start()
+        # Start API server
+        api_thread = start_api_server(
+            host='localhost',
+            port=8000,  # Use default port 8000 for API
+            processor_instance=processor
+        )
         
+        # Keep the main thread running
         try:
             while True:
+                time.sleep(1)
                 print_metrics()
-                time.sleep(5)  # Update every 5 seconds
+                time.sleep(9)  # Print metrics every 10 seconds
         except KeyboardInterrupt:
-            click.echo("\nStopping feed processor...")
-        finally:
             processor.stop()
+            click.echo("\nShutting down...")
             
     except Exception as e:
-        click.echo(f"Error: {str(e)}", err=True)
+        click.echo(f"Error starting feed processor: {str(e)}", err=True)
         sys.exit(1)
 
 @cli.command()

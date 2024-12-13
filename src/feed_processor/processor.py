@@ -54,7 +54,8 @@ class FeedProcessor:
         webhook_url: str,
         content_queue: Optional[ContentQueue] = None,
         webhook_manager: Optional[WebhookManager] = None,
-        test_mode: bool = False
+        test_mode: bool = False,
+        metrics_port: int = 8000
     ):
         """Initialize the feed processor.
         
@@ -64,6 +65,7 @@ class FeedProcessor:
             content_queue: Optional custom content queue
             webhook_manager: Optional custom webhook manager
             test_mode: If True, won't start continuous processing
+            metrics_port: Port to use for Prometheus metrics
         """
         self.inoreader_token = inoreader_token
         self.webhook_url = webhook_url
@@ -77,6 +79,7 @@ class FeedProcessor:
         self.poll_interval = 60  # seconds
         self.logger = logging.getLogger(__name__)
         self.rate_limiter = RateLimiter()
+        init_metrics(metrics_port)  # Initialize Prometheus metrics with specified port
         
     def fetch_feeds(self) -> List[Dict[str, Any]]:
         """Fetch feeds from Inoreader API.

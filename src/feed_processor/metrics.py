@@ -258,3 +258,12 @@ class MetricsCollector:
                         metric.record(float(value))
             else:
                 raise ValueError(f"Unknown operation: {operation}")
+
+def init_metrics(port=8000):
+    """Initialize and start the metrics server on the specified port."""
+    metrics_thread = threading.Thread(
+        target=start_metrics_server,
+        args=(port,),
+        daemon=True
+    )
+    metrics_thread.start()

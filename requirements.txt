@@ -34,3 +34,10 @@ types-requests==2.31.0.10
 
 # Enhanced validation features
 click>=8.0.0
+
+# Load testing and monitoring
+locust==2.24.0
+prometheus-client>=0.19.0
+docker-compose>=1.29.2
+psutil>=5.9.0
+docker>=6.1.0

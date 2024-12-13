@@ -23,7 +23,8 @@ class FeedProcessor:
                  max_queue_size: int = 1000,
                  webhook_endpoint: Optional[str] = None,
                  webhook_auth_token: Optional[str] = None,
-                 webhook_batch_size: int = 10):
+                 webhook_batch_size: int = 10,
+                 metrics_port: int = 8000):
         self.queue = Queue(maxsize=max_queue_size)
         self._running = False
         self._stop_event = Event()
@@ -43,7 +44,7 @@ class FeedProcessor:
         self.batch_size = webhook_batch_size
         self.current_batch: List[Dict[str, Any]] = []
         
-        init_metrics()  # Initialize Prometheus metrics
+        init_metrics(metrics_port)  # Initialize Prometheus metrics with specified port
 
     def start(self):
         """Start the feed processor."""

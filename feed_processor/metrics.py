@@ -1,5 +1,6 @@
 from prometheus_client import Counter, Gauge, Histogram, start_http_server
 import threading
+import time
 
 # Initialize metrics
 PROCESSING_RATE = Counter(
@@ -46,16 +47,34 @@ QUEUE_DISTRIBUTION = Gauge(
     ['feed_type']
 )
 
-def start_metrics_server(port=8000):
-    """Start the Prometheus metrics server on the specified port."""
-    start_http_server(port)
-    print(f"Metrics server started on port {port}")
+def start_metrics_server(preferred_port=8000):
+    """Start the Prometheus metrics server, trying multiple ports if necessary."""
+    # Try ports in range [preferred_port, preferred_port + 100]
+    for port in range(preferred_port, preferred_port + 100):
+        try:
+            start_http_server(port)
+            print(f"Metrics server started successfully on port {port}")
+            return port
+        except OSError:
+            print(f"Port {port} is in use, trying next port...")
+            continue
+    raise RuntimeError("Could not find an available port for metrics server")
 
-# Start metrics server in a separate thread
-def init_metrics():
+def init_metrics(port=8000):
+    """Initialize and start the metrics server on the specified port."""
+    def run_server():
+        try:
+            actual_port = start_metrics_server(port)
+            print(f"Metrics available at http://localhost:{actual_port}/metrics")
+        except Exception as e:
+            print(f"Failed to start metrics server: {e}")
+            raise
+
     metrics_thread = threading.Thread(
-        target=start_metrics_server,
-        args=(8000,),
+        target=run_server,
         daemon=True
     )
     metrics_thread.start()
+    # Give the server a moment to start
+    time.sleep(1)
+    return metrics_thread

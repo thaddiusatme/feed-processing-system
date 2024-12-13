@@ -1,0 +1,7 @@
+{
+    "max_queue_size": 1000,
+    "webhook_endpoint": "http://localhost:9000/webhook",
+    "webhook_auth_token": "test-token",
+    "webhook_batch_size": 10,
+    "metrics_port": 49152
+}
