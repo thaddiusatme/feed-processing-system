@@ -4,9 +4,13 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from feed_processor.error_handling import (CircuitBreaker, ErrorCategory,
-                                           ErrorContext, ErrorHandler,
-                                           ErrorSeverity)
+from feed_processor.error_handling import (
+    CircuitBreaker,
+    ErrorCategory,
+    ErrorContext,
+    ErrorHandler,
+    ErrorSeverity,
+)
 
 
 class TestCircuitBreaker:

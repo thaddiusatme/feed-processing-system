@@ -5,8 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
-from feed_processor.error_handling import (ErrorCategory, ErrorHandler,
-                                           ErrorSeverity)
+from feed_processor.error_handling import ErrorCategory, ErrorHandler, ErrorSeverity
 
 
 class TestInoreaderIntegration:

@@ -14,9 +14,16 @@ from urllib.parse import urlparse
 import click
 from prometheus_client import CollectorRegistry, generate_latest
 
-from .metrics import (PROCESSING_LATENCY, PROCESSING_RATE, QUEUE_OVERFLOWS,
-                      QUEUE_SIZE, RATE_LIMIT_DELAY, WEBHOOK_PAYLOAD_SIZE,
-                      WEBHOOK_RETRIES, start_metrics_server)
+from .metrics import (
+    PROCESSING_LATENCY,
+    PROCESSING_RATE,
+    QUEUE_OVERFLOWS,
+    QUEUE_SIZE,
+    RATE_LIMIT_DELAY,
+    WEBHOOK_PAYLOAD_SIZE,
+    WEBHOOK_RETRIES,
+    start_metrics_server,
+)
 from .processor import FeedProcessor
 from .validator import FeedValidator
 from .webhook import WebhookConfig

@@ -139,44 +139,47 @@ class TestWebhookManagerLogging:
             assert response.error_id.startswith("err_")
             assert response.error_id.split("_")[2] == "400"  # Status code in error ID
 
+
 def test_webhook_logging_success():
     manager = WebhookManager()
     webhook_url = "http://test.com"
     payload = {"data": "test"}
-    
-    with patch.object(manager, '_send_webhook') as mock_send:
+
+    with patch.object(manager, "_send_webhook") as mock_send:
         mock_send.return_value = {"status": "success"}
         response = manager.send_webhook(webhook_url, payload)
-        
+
     assert response["status"] == "success"
     assert webhook_url not in manager.retry_count
+
 
 def test_webhook_logging_failure():
     manager = WebhookManager()
     webhook_url = "http://test.com"
     payload = {"data": "test"}
-    
-    with patch.object(manager, '_send_webhook', side_effect=Exception("Test error")):
+
+    with patch.object(manager, "_send_webhook", side_effect=Exception("Test error")):
         with pytest.raises(Exception):
             manager.send_webhook(webhook_url, payload, max_retries=2)
-    
+
     assert webhook_url in manager.retry_count
     assert manager.retry_count[webhook_url] == 2
+
 
 def test_webhook_retry_logging():
     manager = WebhookManager()
     webhook_url = "http://test.com"
     payload = {"data": "test"}
-    
-    with patch.object(manager, '_send_webhook') as mock_send:
+
+    with patch.object(manager, "_send_webhook") as mock_send:
         mock_send.side_effect = [
             Exception("First attempt"),
             Exception("Second attempt"),
-            {"status": "success"}
+            {"status": "success"},
         ]
-        
+
         response = manager.send_webhook(webhook_url, payload, max_retries=3)
-    
+
     assert response["status"] == "success"
     assert webhook_url in manager.retry_count
     assert manager.retry_count[webhook_url] == 2  # Two failures before success

@@ -7,8 +7,7 @@ from typing import Any, Callable, Dict, List
 
 import pytest
 
-from feed_processor.error_handling import (CircuitBreaker, ErrorCategory,
-                                           ErrorHandler, ErrorSeverity)
+from feed_processor.error_handling import CircuitBreaker, ErrorCategory, ErrorHandler, ErrorSeverity
 
 
 @dataclass
