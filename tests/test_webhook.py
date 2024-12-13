@@ -1,8 +1,10 @@
-import unittest
-from unittest.mock import Mock, patch
 import json
+import unittest
 from datetime import datetime
-from feed_processor.webhook import WebhookManager, WebhookConfig, WebhookResponse, WebhookError
+from unittest.mock import Mock, patch
+
+from feed_processor.webhook import (WebhookConfig, WebhookError,
+                                    WebhookManager, WebhookResponse)
 
 
 class TestWebhookManager(unittest.TestCase):

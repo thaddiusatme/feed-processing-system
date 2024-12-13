@@ -1,25 +1,20 @@
-import unittest
-from unittest.mock import patch, Mock, MagicMock
+import asyncio
 import json
+import threading
 import time
+import unittest
 from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
+
 from click.testing import CliRunner
 from prometheus_client import CollectorRegistry
-import threading
-import asyncio
 
 from feed_processor.cli import cli, load_config
+from feed_processor.metrics import (PROCESSING_LATENCY, PROCESSING_RATE,
+                                    QUEUE_OVERFLOWS, QUEUE_SIZE,
+                                    RATE_LIMIT_DELAY, WEBHOOK_PAYLOAD_SIZE,
+                                    WEBHOOK_RETRIES, start_metrics_server)
 from feed_processor.processor import FeedProcessor
-from feed_processor.metrics import (
-    PROCESSING_RATE,
-    QUEUE_SIZE,
-    PROCESSING_LATENCY,
-    WEBHOOK_RETRIES,
-    WEBHOOK_PAYLOAD_SIZE,
-    RATE_LIMIT_DELAY,
-    QUEUE_OVERFLOWS,
-    start_metrics_server,
-)
 
 
 class AsyncCliRunner(CliRunner):

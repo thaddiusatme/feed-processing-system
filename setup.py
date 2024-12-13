@@ -28,6 +28,7 @@ EXTRAS_REQUIRE = {
         "black>=23.11.0",
         "flake8>=6.1.0",
         "mypy>=1.7.1",
+        "isort>=5.12.0",
         "pre-commit>=3.5.0",
         "types-requests>=2.31.0.10",
         "types-python-dateutil>=2.8.19.14",

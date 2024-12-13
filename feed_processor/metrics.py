@@ -1,6 +1,7 @@
-from prometheus_client import Counter, Gauge, Histogram, start_http_server
 import threading
 import time
+
+from prometheus_client import Counter, Gauge, Histogram, start_http_server
 
 # Initialize metrics
 PROCESSING_RATE = Counter("feed_processing_rate", "Number of feeds processed per second")

@@ -1,10 +1,11 @@
-from dataclasses import dataclass
-from typing import Dict, Any, List, Optional
-import time
 import json
-import requests
-from datetime import datetime
 import re
+import time
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+import requests
 
 
 class DateTimeEncoder(json.JSONEncoder):

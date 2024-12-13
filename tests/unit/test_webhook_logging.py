@@ -1,8 +1,10 @@
-import pytest
-from unittest.mock import Mock, patch, create_autospec
-import structlog
 import time
 from datetime import datetime
+from unittest.mock import Mock, create_autospec, patch
+
+import pytest
+import structlog
+
 from feed_processor.webhook_manager import WebhookManager, WebhookResponse
 
 

@@ -1,8 +1,10 @@
 """API server for feed processing system."""
 
-from flask import Flask, request, jsonify
-from .processor import FeedProcessor
 import threading
+
+from flask import Flask, jsonify, request
+
+from .processor import FeedProcessor
 
 app = Flask(__name__)
 processor = None

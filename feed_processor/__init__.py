@@ -1,7 +1,7 @@
 """Feed processor module."""
 
-from .processor import FeedProcessor
 from .metrics import init_metrics, start_metrics_server
+from .processor import FeedProcessor
 from .validator import FeedValidator
 from .webhook import WebhookConfig, WebhookManager
 

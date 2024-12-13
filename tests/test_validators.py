@@ -1,6 +1,7 @@
 import unittest
 from datetime import datetime
-from feed_processor.validators import FeedValidator, FeedValidationResult
+
+from feed_processor.validators import FeedValidationResult, FeedValidator
 
 
 class TestFeedValidator(unittest.TestCase):

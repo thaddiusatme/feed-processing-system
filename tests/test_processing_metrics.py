@@ -1,6 +1,8 @@
-import pytest
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
+
+import pytest
+
 from feed_processor.processing_metrics import ProcessingMetrics
 
 

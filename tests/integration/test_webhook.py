@@ -1,9 +1,11 @@
 """Integration tests for webhook delivery system."""
 
-import pytest
-from unittest.mock import patch
-import requests
 import time
+from unittest.mock import patch
+
+import pytest
+import requests
+
 from feed_processor import FeedProcessor
 from feed_processor.webhook import WebhookManager
 

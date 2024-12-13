@@ -1,8 +1,9 @@
 """Integration tests for the monitoring system."""
 
 import pytest
-from prometheus_client.parser import text_string_to_metric_families
 import requests
+from prometheus_client.parser import text_string_to_metric_families
+
 from feed_processor import FeedProcessor
 from feed_processor.metrics_exporter import PrometheusExporter
 

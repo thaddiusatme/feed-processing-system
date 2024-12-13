@@ -1,11 +1,23 @@
-"""Feed validation module."""
+"""Feed validator module with enhanced validation features and performance optimizations."""
+
+import asyncio
+import concurrent.futures
+import functools
 import json
+import logging
+import os
+import re
+import xml.etree.ElementTree as ET
+from dataclasses import asdict, dataclass
 from datetime import datetime
-from typing import Dict, List, Optional
+from email.utils import parsedate_tz
+from typing import Dict, List, Optional, Tuple, Union
 from urllib.parse import urlparse
 
+import aiohttp
+import chardet
 import feedparser
-import requests
+from cachetools import TTLCache
 
 class ValidationResult:
     """Result of feed validation."""

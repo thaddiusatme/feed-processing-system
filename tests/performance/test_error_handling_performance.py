@@ -1,12 +1,14 @@
-import pytest
-import time
 import statistics
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import List, Dict, Any, Callable
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any, Callable, Dict, List
 
-from feed_processor.error_handling import ErrorHandler, ErrorCategory, ErrorSeverity, CircuitBreaker
+import pytest
+
+from feed_processor.error_handling import (CircuitBreaker, ErrorCategory,
+                                           ErrorHandler, ErrorSeverity)
 
 
 @dataclass

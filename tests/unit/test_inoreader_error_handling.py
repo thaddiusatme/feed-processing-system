@@ -1,8 +1,10 @@
-import pytest
-from unittest.mock import Mock, patch
 from datetime import datetime
+from unittest.mock import Mock, patch
 
-from feed_processor.error_handling import ErrorHandler, ErrorCategory, ErrorSeverity, CircuitBreaker
+import pytest
+
+from feed_processor.error_handling import (CircuitBreaker, ErrorCategory,
+                                           ErrorHandler, ErrorSeverity)
 
 
 class TestInoreaderErrorHandling:

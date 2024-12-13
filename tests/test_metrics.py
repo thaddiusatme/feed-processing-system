@@ -1,7 +1,9 @@
-import pytest
 from datetime import datetime, timezone
 from unittest.mock import Mock, patch
-from feed_processor.metrics import MetricsCollector, MetricType, Metric
+
+import pytest
+
+from feed_processor.metrics import Metric, MetricsCollector, MetricType
 
 
 @pytest.fixture

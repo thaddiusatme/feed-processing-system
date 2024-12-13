@@ -1,13 +1,15 @@
-import pytest
-import os
 import json
+import os
 import time
-from pathlib import Path
-from unittest.mock import patch, MagicMock
 from datetime import datetime, timedelta
-from typing import Dict, Any, List
+from pathlib import Path
+from typing import Any, Dict, List
+from unittest.mock import MagicMock, patch
 
-from feed_processor.error_handling import ErrorHandler, ErrorCategory, ErrorSeverity
+import pytest
+
+from feed_processor.error_handling import (ErrorCategory, ErrorHandler,
+                                           ErrorSeverity)
 
 
 class TestErrorLoggingPipeline:

@@ -1,6 +1,8 @@
-import pytest
 from datetime import datetime, timezone
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
+
 from feed_processor.feed_processor import FeedProcessor
 from feed_processor.priority_queue import Priority, QueueItem
 from feed_processor.webhook_manager import WebhookManager, WebhookResponse

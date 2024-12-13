@@ -1,10 +1,11 @@
-import pytest
-from unittest.mock import Mock, patch
 import time
 from datetime import datetime
-import threading
+from unittest.mock import Mock, patch
 
-from feed_processor.error_handling import ErrorHandler, ErrorCategory, ErrorSeverity, CircuitBreaker, RetryWithExponentialBackoff
+import pytest
+
+from feed_processor.error_handling import (CircuitBreaker, ErrorCategory,
+                                           ErrorHandler, ErrorSeverity)
 from feed_processor.webhook_manager import WebhookManager
 
 
