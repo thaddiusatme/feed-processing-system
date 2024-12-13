@@ -1,0 +1,16 @@
+# These owners will be the default owners for everything in
+# the repo. Unless a later match takes precedence,
+# they will be requested for review when someone opens a pull request.
+*       @thaddiusatme
+
+# Feed processor core
+/feed_processor/       @thaddiusatme
+
+# Tests
+/tests/               @thaddiusatme
+
+# CI/CD
+/.github/workflows/   @thaddiusatme
+
+# Documentation
+/docs/                @thaddiusatme
