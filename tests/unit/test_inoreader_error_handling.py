@@ -3,8 +3,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from feed_processor.error_handling import (CircuitBreaker, ErrorCategory,
-                                           ErrorHandler, ErrorSeverity)
+from feed_processor.error_handling import CircuitBreaker, ErrorCategory, ErrorHandler, ErrorSeverity
 
 
 class TestInoreaderErrorHandling:

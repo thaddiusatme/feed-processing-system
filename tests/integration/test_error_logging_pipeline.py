@@ -8,8 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from feed_processor.error_handling import (ErrorCategory, ErrorHandler,
-                                           ErrorSeverity)
+from feed_processor.error_handling import ErrorCategory, ErrorHandler, ErrorSeverity
 
 
 class TestErrorLoggingPipeline:

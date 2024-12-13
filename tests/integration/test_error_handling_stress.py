@@ -6,8 +6,7 @@ from typing import Any, Dict, List
 
 import pytest
 
-from feed_processor.error_handling import (CircuitBreaker, ErrorCategory,
-                                           ErrorHandler, ErrorSeverity)
+from feed_processor.error_handling import CircuitBreaker, ErrorCategory, ErrorHandler, ErrorSeverity
 
 
 class TestErrorHandlingStress:

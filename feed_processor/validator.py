@@ -19,23 +19,23 @@ import chardet
 import feedparser
 from cachetools import TTLCache
 
+
 class ValidationResult:
     """Result of feed validation."""
+
     def __init__(self, valid: bool, errors: Optional[List[str]] = None):
         self.valid = valid
         self.errors = errors or []
 
+
 class FeedValidator:
     """Validates RSS/Atom feeds."""
+
     def __init__(self, config: Optional[Dict] = None):
         self.config = config or {}
-        self.required_fields = self.config.get('required_fields', [
-            'title',
-            'link',
-            'description'
-        ])
-        self.max_title_length = self.config.get('max_title_length', 100)
-        self.max_description_length = self.config.get('max_description_length', 5000)
+        self.required_fields = self.config.get("required_fields", ["title", "link", "description"])
+        self.max_title_length = self.config.get("max_title_length", 100)
+        self.max_description_length = self.config.get("max_description_length", 5000)
 
     def validate(self, feed_url: str) -> ValidationResult:
         """Validate a feed URL."""
@@ -77,18 +77,22 @@ class FeedValidator:
         else:
             for entry in feed.entries:
                 # Validate entry fields
-                if not entry.get('title'):
+                if not entry.get("title"):
                     errors.append("Entry missing title")
                 elif len(entry.title) > self.max_title_length:
-                    errors.append(f"Entry title exceeds maximum length of {self.max_title_length} characters")
+                    errors.append(
+                        f"Entry title exceeds maximum length of {self.max_title_length} characters"
+                    )
 
-                if not entry.get('description'):
+                if not entry.get("description"):
                     errors.append("Entry missing description")
                 elif len(entry.description) > self.max_description_length:
-                    errors.append(f"Entry description exceeds maximum length of {self.max_description_length} characters")
+                    errors.append(
+                        f"Entry description exceeds maximum length of {self.max_description_length} characters"
+                    )
 
                 # Validate dates
-                if entry.get('published'):
+                if entry.get("published"):
                     try:
                         published = datetime.strptime(entry.published, "%Y-%m-%dT%H:%M:%SZ")
                         if published > datetime.utcnow():

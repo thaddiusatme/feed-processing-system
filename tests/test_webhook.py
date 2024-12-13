@@ -3,8 +3,7 @@ import unittest
 from datetime import datetime
 from unittest.mock import Mock, patch
 
-from feed_processor.webhook import (WebhookConfig, WebhookError,
-                                    WebhookManager, WebhookResponse)
+from feed_processor.webhook import WebhookConfig, WebhookError, WebhookManager, WebhookResponse
 
 
 class TestWebhookManager(unittest.TestCase):

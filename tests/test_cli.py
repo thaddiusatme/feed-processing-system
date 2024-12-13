@@ -10,10 +10,16 @@ from click.testing import CliRunner
 from prometheus_client import CollectorRegistry
 
 from feed_processor.cli import cli, load_config
-from feed_processor.metrics import (PROCESSING_LATENCY, PROCESSING_RATE,
-                                    QUEUE_OVERFLOWS, QUEUE_SIZE,
-                                    RATE_LIMIT_DELAY, WEBHOOK_PAYLOAD_SIZE,
-                                    WEBHOOK_RETRIES, start_metrics_server)
+from feed_processor.metrics import (
+    PROCESSING_LATENCY,
+    PROCESSING_RATE,
+    QUEUE_OVERFLOWS,
+    QUEUE_SIZE,
+    RATE_LIMIT_DELAY,
+    WEBHOOK_PAYLOAD_SIZE,
+    WEBHOOK_RETRIES,
+    start_metrics_server,
+)
 from feed_processor.processor import FeedProcessor
 
 
