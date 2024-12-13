@@ -19,7 +19,7 @@ jobs:
         
     - name: Install build dependencies
       run: |
-        python -m pip install --upgrade pip
+        python3.12 -m pip install --upgrade pip
         pip install build wheel setuptools
         
     - name: Install dependencies
@@ -57,26 +57,26 @@ jobs:
         
     - name: Install build dependencies
       run: |
-        python -m pip install --upgrade pip
+        python3.12 -m pip install --upgrade pip
         pip install build wheel setuptools
         
     - name: Install dependencies
       run: |
         pip install -r requirements.txt
         pip install -r requirements-dev.txt
-        python -m spacy download en_core_web_sm
+        python3.12 -m spacy download en_core_web_sm
         
     - name: Run unit tests
       run: |
-        python -m pytest tests/unit -v --cov=feed_processor --cov-report=xml
+        python3.12 -m pytest tests/unit -v --cov=feed_processor --cov-report=xml
         
     - name: Run integration tests
       run: |
-        python -m pytest tests/integration -v --cov=feed_processor --cov-report=xml --cov-append
+        python3.12 -m pytest tests/integration -v --cov=feed_processor --cov-report=xml --cov-append
         
     - name: Run remaining tests
       run: |
-        python -m pytest tests/*.py tests/performance/*.py -v --cov=feed_processor --cov-report=xml --cov-append
+        python3.12 -m pytest tests/*.py tests/performance/*.py -v --cov=feed_processor --cov-report=xml --cov-append
         
     - name: Upload coverage
       uses: codecov/codecov-action@v3
