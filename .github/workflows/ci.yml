@@ -6,20 +6,23 @@ on:
   pull_request:
     branches: [ main ]
 
+env:
+  PYTHON_VERSION: "3.12"
+
 jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
     
-    - name: Set up Python
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
       uses: actions/setup-python@v4
       with:
-        python-version: "3.12"
+        python-version: ${{ env.PYTHON_VERSION }}
         
     - name: Install build dependencies
       run: |
-        python3.12 -m pip install --upgrade pip
+        python -m pip install --upgrade pip
         pip install build wheel setuptools
         
     - name: Install dependencies
@@ -50,33 +53,33 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    - name: Set up Python
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
       uses: actions/setup-python@v4
       with:
-        python-version: "3.12"
+        python-version: ${{ env.PYTHON_VERSION }}
         
     - name: Install build dependencies
       run: |
-        python3.12 -m pip install --upgrade pip
+        python -m pip install --upgrade pip
         pip install build wheel setuptools
         
     - name: Install dependencies
       run: |
         pip install -r requirements.txt
         pip install -r requirements-dev.txt
-        python3.12 -m spacy download en_core_web_sm
+        python -m spacy download en_core_web_sm
         
     - name: Run unit tests
       run: |
-        python3.12 -m pytest tests/unit -v --cov=feed_processor --cov-report=xml
+        python -m pytest tests/unit -v --cov=feed_processor --cov-report=xml
         
     - name: Run integration tests
       run: |
-        python3.12 -m pytest tests/integration -v --cov=feed_processor --cov-report=xml --cov-append
+        python -m pytest tests/integration -v --cov=feed_processor --cov-report=xml --cov-append
         
     - name: Run remaining tests
       run: |
-        python3.12 -m pytest tests/*.py tests/performance/*.py -v --cov=feed_processor --cov-report=xml --cov-append
+        python -m pytest tests/*.py tests/performance/*.py -v --cov=feed_processor --cov-report=xml --cov-append
         
     - name: Upload coverage
       uses: codecov/codecov-action@v3
