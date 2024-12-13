@@ -1,5 +1,47 @@
 from setuptools import setup, find_packages
 
+# Core requirements
+INSTALL_REQUIRES = [
+    "requests>=2.31.0",
+    "python-dotenv>=1.0.0",
+    "chardet>=4.0.0",
+    "aiohttp>=3.9.1",
+    "cachetools>=5.3.2",
+    "spacy>=3.7.2",
+    "textstat>=0.7.3",
+    "rake-nltk>=1.0.6",
+    "pyairtable>=2.2.1",
+    "pybreaker>=1.0.1",
+    "structlog>=23.2.0",
+    "prometheus-client>=0.17.1",
+    "feedparser>=6.0.0",
+    "click>=8.0.0",
+]
+
+# Development requirements
+EXTRAS_REQUIRE = {
+    "dev": [
+        "pytest>=7.4.3",
+        "pytest-cov>=4.1.0",
+        "pytest-mock>=3.12.0",
+        "pytest-asyncio>=0.23.2",
+        "black>=23.11.0",
+        "flake8>=6.1.0",
+        "mypy>=1.7.1",
+        "pre-commit>=3.5.0",
+        "types-requests>=2.31.0.10",
+        "types-python-dateutil>=2.8.19.14",
+        "sphinx>=7.2.6",
+        "sphinx-rtd-theme>=1.3.0",
+    ],
+    "test": [
+        "pytest>=7.4.3",
+        "pytest-cov>=4.1.0",
+        "pytest-mock>=3.12.0",
+        "pytest-asyncio>=0.23.2",
+    ],
+}
+
 setup(
     name="feed_processor",
     version="1.0.0",
@@ -24,5 +66,6 @@ setup(
         "Topic :: Internet :: WWW/HTTP :: Dynamic Content :: News/Diary",
     ],
     python_requires=">=3.12",
-    install_requires=open("requirements.txt").read().splitlines(),
+    install_requires=INSTALL_REQUIRES,
+    extras_require=EXTRAS_REQUIRE,
 )

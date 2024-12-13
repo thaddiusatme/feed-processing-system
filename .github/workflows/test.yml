@@ -2,7 +2,7 @@ name: Test
 
 on:
   push:
-    branches: [ main ]
+    branches-ignore: [ main ]
   pull_request:
     branches: [ main ]
 
@@ -29,25 +29,15 @@ jobs:
         python -m pip install --upgrade pip
         pip install build wheel setuptools
         
-    - name: Install dependencies
+    - name: Install package
       run: |
-        pip install -r requirements.txt
-        pip install -r requirements-dev.txt
-        python -m spacy download en_core_web_sm
+        pip install -e ".[test]"
         
-    - name: Run unit tests
+    - name: Run tests
       run: |
-        python -m pytest tests/unit -v --cov=feed_processor --cov-report=xml
+        pytest tests/ --cov=feed_processor --cov-report=xml
         
-    - name: Run integration tests
-      run: |
-        python -m pytest tests/integration -v --cov=feed_processor --cov-report=xml --cov-append
-        
-    - name: Run remaining tests
-      run: |
-        python -m pytest tests/*.py tests/performance/*.py -v --cov=feed_processor --cov-report=xml --cov-append
-        
-    - name: Upload coverage to Codecov
+    - name: Upload coverage
       uses: codecov/codecov-action@v3
       with:
         file: ./coverage.xml
