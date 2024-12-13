@@ -1,5 +1,28 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from functools import wraps
+from time import perf_counter
+
+def track_performance(func):
+    """Decorator to track performance metrics of a function."""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        start_time = perf_counter()
+        try:
+            result = func(*args, **kwargs)
+            if hasattr(args[0], 'metrics'):
+                args[0].metrics.increment_processed()
+            return result
+        except Exception as e:
+            if hasattr(args[0], 'metrics'):
+                args[0].metrics.increment_errors()
+            raise e
+        finally:
+            if hasattr(args[0], 'metrics'):
+                duration = perf_counter() - start_time
+                args[0].metrics.update_process_time(duration)
+    
+    return wrapper
 
 @dataclass
 class ProcessingMetrics:

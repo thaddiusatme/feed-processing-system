@@ -11,6 +11,12 @@ A robust and scalable system for processing RSS/Atom feeds with webhook delivery
 - Configurable webhook settings
 - Thread-safe implementation
 - Graceful shutdown handling
+- Advanced error handling:
+  - Circuit breaker pattern for service protection
+  - Error tracking and metrics
+  - Configurable error history
+  - Sensitive data sanitization
+  - Comprehensive error categorization
 
 ## Requirements
 
@@ -152,26 +158,189 @@ The system exports the following Prometheus metrics:
 
 ## Project Structure
 
+### Current Structure
 ```
 feed_processor/
-├── config/          # Configuration management
-├── core/            # Core processing logic
-├── queues/          # Queue implementations
-├── metrics/         # Metrics and monitoring
-├── validation/      # Feed validation
-├── webhook/         # Webhook handling
-└── errors.py        # Centralized error handling
+├── __init__.py
+├── api.py                # API endpoints and interfaces
+├── cli.py               # Command-line interface
+├── content_analysis.py  # Content analysis functionality
+├── content_queue.py     # Content-specific queue implementation
+├── error_handling.py    # Error handling and circuit breaker
+├── metrics.py          # Core metrics functionality
+├── priority_queue.py   # Base priority queue implementation
+├── processing_metrics.py # Processing-specific metrics
+├── processor.py        # Main feed processor implementation
+├── validator.py        # Core validation functionality
+├── validators.py       # Extended validation rules
+└── webhook.py         # Webhook handling and delivery
+
+docs/                  # Documentation
+├── api/              # API documentation
+└── examples/         # Usage examples
+
+tests/                # Test suite
+├── unit/            # Unit tests
+├── integration/     # Integration tests
+└── fixtures/        # Test fixtures
+
+monitoring/          # Monitoring configuration
+└── prometheus/      # Prometheus configuration
+
+scripts/             # Utility scripts
 ```
 
-### Key Components
+### Planned Structure (In Progress)
+```
+feed_processor/
+├── config/                  # Configuration management
+│   ├── __init__.py
+│   ├── webhook_config.py    # Webhook-specific configuration
+│   └── processor_config.py  # Core processor configuration
+├── core/                    # Core processing logic
+│   ├── __init__.py
+│   └── processor.py        # Main feed processing implementation
+├── queues/                 # Queue implementations
+│   ├── __init__.py
+│   ├── base.py            # Base queue implementations including PriorityQueue
+│   └── content.py         # Content-specific queue implementations
+├── metrics/               # Metrics and monitoring
+│   ├── __init__.py
+│   ├── prometheus.py      # Prometheus metrics integration
+│   └── performance.py     # Performance monitoring metrics
+├── validation/           # Feed validation
+│   ├── __init__.py
+│   └── validators.py     # Feed validation logic
+├── webhook/             # Webhook handling
+│   ├── __init__.py
+│   └── manager.py      # Webhook delivery management
+└── errors.py           # Centralized error handling
+```
 
-- **Config**: Centralized configuration management for all components
-- **Core**: Main processing logic and orchestration
-- **Queues**: Priority-based queue system with content-specific implementations
-- **Metrics**: Prometheus metrics and performance monitoring
-- **Validation**: Feed validation and verification
-- **Webhook**: Webhook delivery and management
-- **Errors**: Unified error handling system
+### Additional Project Files
+- `requirements.txt` - Production dependencies
+- `requirements-dev.txt` - Development dependencies
+- `setup.py` - Package installation configuration
+- `pyproject.toml` - Project metadata and build configuration
+- `docker-compose.yml` - Docker services configuration
+- `docker-compose.monitoring.yml` - Monitoring stack configuration
+- `.env.example` - Example environment variables
+- `Makefile` - Development and deployment commands
+
+## Architecture Overview
+
+The Feed Processing System is built with a modular architecture that separates concerns into distinct components:
+
+#### 1. Core Processing (core/)
+- `processor.py`: Implements the main feed processing logic
+- Handles the orchestration of feed parsing, validation, and delivery
+- Manages the lifecycle of feed processing jobs
+
+#### 2. Queue Management (queues/)
+- `base.py`: Contains the base `PriorityQueue` implementation for efficient job scheduling
+- `content.py`: Extends the base queue with content-specific functionality
+- Provides thread-safe operations for concurrent processing
+
+#### 3. Configuration (config/)
+- `webhook_config.py`: Manages webhook-related settings (endpoints, authentication, retry policies)
+- `processor_config.py`: Controls core processor behavior (queue sizes, batch settings)
+- Centralizes all configuration management
+
+#### 4. Validation (validation/)
+- `validators.py`: Implements comprehensive feed validation
+- Supports both basic and strict validation modes
+- Ensures feed quality and conformance to standards
+
+#### 5. Webhook Delivery (webhook/)
+- `manager.py`: Handles reliable webhook delivery
+- Implements retry logic and rate limiting
+- Manages batch processing of notifications
+
+#### 6. Metrics and Monitoring (metrics/)
+- `prometheus.py`: Exports Prometheus-compatible metrics
+- `performance.py`: Tracks system performance metrics
+- Provides real-time monitoring capabilities
+
+#### 7. Error Handling (errors.py)
+- Centralizes error definitions
+- Implements custom exceptions for different failure scenarios
+- Provides consistent error handling across components
+
+### Component Interactions
+
+1. **Feed Processing Flow**:
+   - Incoming feeds → Validation → Queue → Processing → Webhook Delivery
+   - Each step is monitored and metrics are collected
+
+2. **Configuration Management**:
+   - Components read from centralized configuration
+   - Runtime configuration changes are supported
+
+3. **Error Handling**:
+   - Consistent error propagation
+   - Automatic retry mechanisms
+   - Detailed error reporting
+
+4. **Monitoring**:
+   - Real-time metrics collection
+   - Performance monitoring
+   - Health checks and alerts
+
+### Design Principles
+
+1. **Modularity**: Each component is self-contained and independently testable
+2. **Scalability**: Queue-based architecture allows for horizontal scaling
+3. **Reliability**: Comprehensive error handling and retry mechanisms
+4. **Observability**: Detailed metrics and monitoring capabilities
+
+## Best Practices and Guidelines
+
+### Development Guidelines
+1. **Code Organization**
+   - Keep modules independent to avoid circular dependencies
+   - Follow the planned directory structure for new code
+   - Use appropriate error categories for proper monitoring
+
+2. **Testing**
+   - Mirror test files with source code structure
+   - Include both unit and integration tests
+   - Use provided test fixtures for consistency
+   - Mock external services in tests
+
+3. **Performance Considerations**
+   - Use batch operations where possible
+   - Monitor queue sizes in production
+   - Set appropriate `max_size` values for queues
+   - Respect rate limits of external services
+
+### Operational Guidelines
+
+1. **Logging Levels**
+   - `ERROR`: Failures requiring immediate attention
+   - `WARNING`: Unusual but handled situations
+   - `INFO`: Normal operation events
+   - `DEBUG`: Detailed troubleshooting
+
+2. **Key Metrics**
+   - Processing Rate (feeds/sec)
+   - Queue Size and Memory Usage
+   - Webhook Delivery Success Rate
+   - Error Rates by Category
+   - Rate Limit Delays
+
+3. **Common Pitfalls**
+   - Always validate content type before processing
+   - Don't bypass validation checks
+   - Configure rate limits based on external service documentation
+   - Never commit sensitive values in configuration
+
+4. **Environment Setup**
+   - Use `.env` for local development
+   - Reference `env.example` for required variables
+   - Ensure webhook settings are properly configured
+   - Validate auth tokens format
+
+For more detailed information about lessons learned and best practices, see `LESSONS_LEARNED.md`.
 
 ## Development
 

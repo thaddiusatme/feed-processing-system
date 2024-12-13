@@ -8,6 +8,10 @@ from typing import Dict, Any, Optional, List
 import random
 import logging
 import os
+from feed_processor.core.errors import FeedProcessingError, NetworkError, RateLimitError
+from feed_processor.webhook.manager import WebhookManager, WebhookResponse
+from feed_processor.queues.content import ContentQueue, QueuedContent
+from feed_processor.metrics.prometheus import init_metrics
 
 @dataclass
 class ProcessingMetrics:
@@ -39,13 +43,6 @@ class RateLimiter:
         # Exponential backoff with jitter
         wait_time = min(2 ** attempt + random.uniform(0, 1), 60)
         time.sleep(wait_time)
-
-from .webhook_manager import WebhookManager, WebhookResponse
-from .content_queue import ContentQueue, QueuedContent
-
-class FeedProcessingError(Exception):
-    """Base exception for feed processing errors."""
-    pass
 
 class FeedProcessor:
     def __init__(

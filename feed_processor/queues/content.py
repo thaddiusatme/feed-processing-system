@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 import threading
 import json
 import hashlib
+from feed_processor.queues.base import PriorityQueue
 
 @dataclass
 class QueuedContent:

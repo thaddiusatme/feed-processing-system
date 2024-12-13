@@ -259,6 +259,11 @@ class MetricsCollector:
             else:
                 raise ValueError(f"Unknown operation: {operation}")
 
+def start_metrics_server(port=8000):
+    """Start a Prometheus metrics server on the specified port."""
+    from prometheus_client import start_http_server
+    start_http_server(port)
+
 def init_metrics(port=8000):
     """Initialize and start the metrics server on the specified port."""
     metrics_thread = threading.Thread(

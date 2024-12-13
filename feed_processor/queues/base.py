@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List, Deque
 import threading
 from collections import deque
-from .metrics import MetricsCollector
+from feed_processor.metrics.prometheus import MetricsCollector
 
 class Priority(Enum):
     """Priority levels for queue items.

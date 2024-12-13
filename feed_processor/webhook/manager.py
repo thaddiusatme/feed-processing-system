@@ -7,7 +7,7 @@ import json
 from typing import Dict, Any, Optional, List
 import requests
 import structlog
-from .metrics import MetricsCollector
+from feed_processor.metrics.prometheus import MetricsCollector
 
 @dataclass
 class WebhookResponse:
