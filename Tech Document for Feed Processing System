@@ -1,0 +1,210 @@
+# Feed Processing System - Technical Specification
+
+## System Overview
+
+The Feed Processing System is a Python-based application that processes content feeds from Inoreader, performs analysis, and delivers processed content via webhooks while maintaining strict rate limiting requirements.
+
+### Core Requirements
+
+1. **Rate Limiting**
+   - Maximum 1 request per 0.2 seconds to Make.com webhook
+   - Thread-safe implementation required
+   - Exponential backoff for failures
+
+2. **Processing Pipeline**
+   - Content fetching from Inoreader
+   - Content analysis and validation
+   - Duplicate detection
+   - Webhook delivery with rate limiting
+
+3. **Data Storage**
+   - Airtable integration for status tracking
+   - Error logging
+   - Performance metrics storage
+
+## Technical Architecture
+
+### Core Components
+
+1. **Feed Processor**
+   ```python
+   class FeedProcessor:
+       def __init__(self, inoreader_token: str, webhook_url: str):
+           self.inoreader_token = inoreader_token
+           self.webhook_url = webhook_url
+           self.rate_limiter = RateLimiter(min_interval=0.2)
+           self.metrics = ProcessingMetrics()
+   ```
+
+2. **Rate Limiter**
+   ```python
+   class RateLimiter:
+       def __init__(self, min_interval: float = 0.2):
+           self.min_interval = min_interval
+           self.last_request = 0
+           self._lock = threading.Lock()
+   ```
+
+3. **Processing Metrics**
+   ```python
+   @dataclass
+   class ProcessingMetrics:
+       processed_count: int = 0
+       error_count: int = 0
+       start_time: datetime = datetime.now()
+       last_process_time: float = 0
+       queue_length: int = 0
+   ```
+
+### Data Flow
+
+1. **Content Retrieval**
+   - Fetch from Inoreader API
+   - Initial validation
+   - Queue for processing
+
+2. **Processing Pipeline**
+   - Content analysis
+   - Metadata extraction
+   - Duplicate detection
+   - Priority assignment
+
+3. **Delivery System**
+   - Rate-limited webhook delivery
+   - Status tracking
+   - Error handling
+   - Retry mechanism
+
+## Implementation Requirements
+
+### 1. API Integration
+
+#### Inoreader API
+```python
+headers = {
+    "Authorization": f"Bearer {INOREADER_TOKEN}",
+    "Content-Type": "application/json"
+}
+response = requests.get(
+    "https://www.inoreader.com/reader/api/0/stream/contents/user/-/state/com.google/reading-list",
+    headers=headers
+)
+```
+
+#### Make.com Webhook
+```python
+def send_to_webhook(data: Dict[str, Any]) -> bool:
+    self.rate_limiter.wait()
+    response = requests.post(
+        WEBHOOK_URL,
+        json=data,
+        headers={"Content-Type": "application/json"}
+    )
+    return response.status_code == 200
+```
+
+### 2. Required Data Format
+
+```json
+{
+    "title": "string (required)",
+    "contentType": ["BLOG" | "VIDEO" | "SOCIAL"],
+    "brief": "string (required)",
+    "priority": ["High" | "Medium" | "Low"],
+    "sourceMetadata": {
+        "feedId": "string",
+        "originalUrl": "string",
+        "publishDate": "ISO 8601 datetime",
+        "author": "string (optional)",
+        "tags": ["string"]
+    }
+}
+```
+
+### 3. Error Handling Requirements
+
+1. **API Errors**
+   - Retry with exponential backoff
+   - Maximum 3 retry attempts
+   - Log all failures
+
+2. **Processing Errors**
+   - Capture stack traces
+   - Log to Airtable
+   - Update status
+
+3. **Rate Limit Violations**
+   - Enforce waiting period
+   - Log violations
+   - Implement backoff strategy
+
+## Performance Requirements
+
+1. **Processing Metrics**
+   - Maximum processing time: 30 seconds per item
+   - Error rate threshold: < 1%
+   - Queue length limit: 1000 items
+   - Response time: < 2 seconds
+
+2. **Monitoring Requirements**
+   - Processing success rate
+   - Error distribution
+   - Queue length tracking
+   - Response time metrics
+
+## Security Requirements
+
+1. **API Security**
+   - Secure token storage
+   - HTTPS for all requests
+   - API key rotation
+   - Request signing
+
+2. **Data Handling**
+   - No PII storage
+   - Secure credential management
+   - Access logging
+   - Error sanitization
+
+## Development Guidelines
+
+### Code Style
+- PEP 8 compliance required
+- Type hints mandatory
+- Comprehensive docstrings
+- Clear error messages
+
+### Testing Requirements
+- 90%+ test coverage
+- Unit tests for all components
+- Integration tests for workflows
+- Performance testing under load
+
+### Documentation
+- API documentation
+- Error handling guide
+- Deployment procedures
+- Monitoring setup
+
+## Deployment Requirements
+
+### Environment Variables
+```bash
+INOREADER_TOKEN=required
+WEBHOOK_URL=required
+RATE_LIMIT=0.2
+MAX_RETRIES=3
+LOG_LEVEL=INFO
+AIRTABLE_API_KEY=required
+AIRTABLE_BASE_ID=required
+```
+
+### Dependencies
+```
+requests==2.31.0
+python-dotenv==1.0.0
+airtable-python-wrapper==0.15.3
+pytest==7.4.3
+mypy==1.7.0
+black==23.11.0
+```
