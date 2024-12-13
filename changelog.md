@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to the Feed Processing System will be documented in this file.
+All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -214,6 +214,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Feed validator unit tests
   - Feed processor integration tests
   - Test coverage for all feed formats
+- Implemented webhook functionality for feed delivery
+  - Added `WebhookManager` class for handling webhook operations
+  - Added webhook configuration and validation
+  - Implemented retry logic with configurable retry count and delay
+  - Added rate limiting support with automatic backoff
+  - Added batch processing of feeds
+  - Added comprehensive webhook metrics tracking
+- Integrated webhook functionality into feed processor
+  - Added webhook configuration to processor initialization
+  - Implemented batch processing of feeds
+  - Added webhook error handling and metrics
+  - Added tests for webhook integration
+- Command-line interface (CLI) for the feed processor
+  - `start` command to run the feed processor
+  - `process` command to process individual feed files
+  - `metrics` command to view current metrics
+  - `configure` command to set up webhook configuration
+- Configuration file support for feed processor settings
+- Real-time metrics display in CLI
+- New `validate` command to check RSS feed files for validity before processing
+  - Validates basic RSS structure and required channel elements
+  - Provides clear error messages for invalid feeds
+- Enhanced feed validation in `validate` command:
+  - Checks for empty feeds (no items)
+  - Validates URL formats in channel and items
+  - Verifies publication dates in channel and items
+  - Provides specific error messages for each validation failure
+- Enhanced feed validation with strict mode:
+  - UTF-8 encoding enforcement
+  - Content length limits for titles and descriptions
+  - Required recommended elements (descriptions)
+  - Improved error messages for each validation type
+- Enhanced feed validation with strict mode
+  - Added UTF-8 encoding requirement
+  - Added content length limits for titles (200 chars) and descriptions (5000 chars)
+  - Added required recommended elements check
+- Improved error messages for validation failures
+- Added chardet dependency for encoding detection
+- Enhanced feed validation system to align with new schema specification:
+  - Title validation with length limits and HTML tag restrictions
+  - URL validation with format checking and length constraints
+  - Content type validation (BLOG, VIDEO, SOCIAL)
+  - Priority level validation (High, Medium, Low)
+  - Tag validation with limits (max 10 tags, 50 chars per tag)
+- Improved feed normalization:
+  - Structured content with full and brief versions
+  - Enhanced metadata handling with source and processing info
+  - Added analysis fields for content type, priority, and scores
+  - ISO 8601 compliant date formatting
+- Enhanced error handling in validator:
+  - Separate tracking of errors and warnings
+  - Detailed validation status reporting
+  - Improved error message clarity
 
 ### Changed
 - Optimized ContentQueue implementation
@@ -256,6 +309,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced feed processor to handle validated feeds
 - Improved error handling in feed processing
 - Standardized feed data format across different feed types
+- Updated feed processor to support batch processing
+- Enhanced metrics to include webhook-related measurements
+- Improved error handling and logging
+- Improved URL validation in feed items
+- Enhanced date format validation
+- Better handling of non-UTF8 encoded feeds
+- Updated CLI error handling to better handle different error types
+- Simplified exit code logic in validate command
+- Exit codes now consistently reflect error types:
+  - 1: Critical errors
+  - 2: Validation errors
+  - Default error exit code (1) for other cases
+- Updated feed normalization to match schema structure exactly
+- Modified validation result format to include detailed error information
+- Improved date handling to ensure ISO 8601 compliance
+- Updated default values to align with schema requirements
 
 ### Enhanced
 - Error handling system with improved performance monitoring
@@ -316,6 +385,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed thread lifecycle management in tests
 - Fixed metrics server port conflicts in tests
 - Date parsing and normalization
+- Fixed JSON serialization of datetime objects in webhook payloads
+- Fixed metrics initialization in tests
+- Improved webhook error handling and retry logic
+- Improved error type categorization in validator
+- Fixed inconsistent exit codes in validation error handling
 
 ### Documentation
 - Added detailed testing guide with setup instructions
@@ -332,46 +406,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Initial release of the Feed Processing System
-- Core feed processing functionality with priority queue system
-- Webhook delivery system with rate limiting and retries
-- Comprehensive monitoring system using Prometheus and Grafana
-- Integration with Inoreader API for feed fetching
-- Error handling with circuit breaker pattern
-- Extensive documentation using Sphinx
-- Development environment setup with code quality tools
-- Integration test suite for monitoring and webhook systems
+- Core feed processor with queue-based processing
+- Webhook integration for feed delivery
+- CLI interface with commands:
+  - `start`: Start the feed processor
+  - `process`: Process a single feed file
+  - `metrics`: Display current metrics
+  - `configure`: Configure webhook settings
+- Prometheus metrics integration
+- Unit tests with pytest
+- GitHub Actions workflows for CI/CD
 
 ### Features
-- Priority-based feed processing queue
-- Customizable priority rules
-- Webhook delivery with rate limiting
-- Prometheus metrics export
-- Grafana dashboards for monitoring
-- Circuit breaker pattern for error handling
-- Batch processing capabilities
-- Configurable via environment variables or YAML
+- Queue-based feed processing with configurable size
+- Webhook delivery with retry mechanism and rate limiting
+- Batch processing support
+- Real-time metrics monitoring
+- Configurable webhook settings
+- Thread-safe implementation
+- Graceful shutdown handling
 
-### Development Tools
-- Added Black for code formatting
-- Added Flake8 for code linting
-- Added MyPy for type checking
-- Added pytest for testing framework
-- Added pre-commit hooks
-- Added Sphinx for documentation
-
-### Documentation
-- Installation guide
-- Configuration guide
-- Usage examples
-- API reference
-- Development guide
-- Monitoring guide
-- Example implementations
-
-### Dependencies
-- Python 3.8+
-- Docker and Docker Compose for monitoring stack
-- Development dependencies in requirements-dev.txt
-- Core dependencies in requirements.txt
-
-[1.0.0]: https://github.com/yourusername/feed-processing-system/releases/tag/v1.0.0
+### Technical Details
+- Python 3.12+ support
+- Prometheus metrics for monitoring:
+  - Processing rate
+  - Queue size
+  - Processing latency
+  - Webhook retries
+  - Payload size
+  - Rate limit delays
+  - Queue overflows
+- Webhook features:
+  - Authentication
+  - Configurable batch size
+  - Retry mechanism
+  - Rate limit handling

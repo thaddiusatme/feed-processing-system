@@ -1,212 +1,199 @@
 # Feed Processing System
 
-A robust Python-based feed processing system that fetches, processes, and delivers content through webhooks. The system is designed to handle high-volume content processing with features like rate limiting, error handling, and content prioritization.
+A robust and scalable system for processing RSS/Atom feeds with webhook delivery capabilities.
 
 ## Features
 
-### Core Processing
-- **Inoreader Integration**
-  - Seamless integration with Inoreader API
-  - Efficient pagination handling
-  - Robust error handling for API interactions
-  - Configurable batch sizes
+- Queue-based feed processing with configurable size
+- Webhook delivery with retry mechanism and rate limiting
+- Batch processing support
+- Real-time metrics monitoring
+- Configurable webhook settings
+- Thread-safe implementation
+- Graceful shutdown handling
 
-- **Priority-Based Processing**
-  - Three-level priority system (High, Normal, Low)
-  - Breaking news detection
-  - Time-based priority adjustment
-  - Configurable priority rules
+## Requirements
 
-- **Queue Management**
-  - Thread-safe priority queue implementation
-  - Efficient O(1) operations with deque
-  - Priority-based item displacement
-  - Queue size monitoring
+- Python 3.12+
+- pip for package management
 
-### Content Delivery
-- **Webhook Management**
-  - Rate-limited delivery system
-  - Configurable retry mechanism
-  - Exponential backoff for failures
-  - Bulk sending capabilities
+## Installation
 
-- **Error Handling**
-  - Comprehensive error tracking
-  - Circuit breaker pattern
-  - Detailed error context
-  - Error metrics collection
-
-- **Logging and Monitoring**
-  - Structured logging with structlog
-  - Request lifecycle tracking
-  - Performance metrics
-  - Queue statistics
-
-- **Metrics and Monitoring**
-  - Counter metrics for tracking cumulative values
-  - Gauge metrics for current state values
-  - Histogram metrics for latency distributions
-  - Thread-safe metric operations
-  - Support for metric labels and timestamps
-  - Prometheus and Grafana integration
-
-## Quick Start
-
-1. **Clone the repository**:
+1. Clone the repository:
 ```bash
 git clone https://github.com/yourusername/feed-processing-system.git
 cd feed-processing-system
 ```
 
-2. **Set up the environment**:
+2. Create and activate a virtual environment:
 ```bash
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+3. Install dependencies:
+```bash
 pip install -r requirements.txt
 ```
 
-3. **Configure environment variables**:
+## Usage
+
+### Command Line Interface
+
+The system provides a CLI with the following commands:
+
+1. Start the feed processor:
 ```bash
-cp .env.example .env
-# Edit .env with your configuration
+python -m feed_processor.cli start [--config CONFIG_FILE]
 ```
 
-4. **Start the monitoring stack**:
+2. Process a single feed file:
 ```bash
-docker-compose -f docker-compose.monitoring.yml up -d
+python -m feed_processor.cli process FEED_FILE [--config CONFIG_FILE]
 ```
 
-5. **Run the processor**:
-```python
-from feed_processor import FeedProcessor
-
-processor = FeedProcessor()
-processor.start()
+3. View current metrics:
+```bash
+python -m feed_processor.cli metrics [--config CONFIG_FILE]
 ```
 
-6. **Access monitoring**:
-- Grafana: http://localhost:3000 (admin/admin)
-- Prometheus: http://localhost:9090
-
-## Configuration
-
-### Environment Variables
-
-```env
-# Core Configuration
-INOREADER_TOKEN=your_api_token
-WEBHOOK_URL=your_webhook_url
-
-# Performance Tuning
-WEBHOOK_RATE_LIMIT=0.2  # Requests per second
-MAX_RETRIES=3
-QUEUE_SIZE=1000
-ERROR_HISTORY_SIZE=100
-
-# Monitoring
-METRICS_PORT=8000
-GRAFANA_PORT=3000
-PROMETHEUS_PORT=9090
+4. Configure webhook settings:
+```bash
+python -m feed_processor.cli configure --endpoint URL --token TOKEN [--batch-size SIZE] [--output CONFIG_FILE]
 ```
 
-### Priority Rules
+5. Validate an RSS feed file:
+```bash
+python -m feed_processor.cli validate feed_file.xml
+```
+This command checks if the feed file is properly formatted and contains all required RSS elements.
 
-Customize priority rules by subclassing `FeedProcessor`:
-
-```python
-class CustomFeedProcessor(FeedProcessor):
-    def _determine_priority(self, item: Dict[str, Any]) -> Priority:
-        if self._is_breaking_news(item):
-            return Priority.HIGH
-        if self._is_from_trusted_source(item):
-            return Priority.NORMAL
-        return Priority.LOW
+### Validate Feed
+To validate an RSS feed file before processing:
+```bash
+python -m feed_processor.cli validate feed_file.xml
 ```
 
-## Monitoring
+The validate command performs comprehensive checks on your RSS feed:
+- Basic RSS structure and required elements
+- Presence of feed items
+- URL format validation for all links
+- Publication date format validation
+- Required channel elements (title, link)
 
-### Available Metrics
+For stricter validation, use the `--strict` flag:
+```bash
+python -m feed_processor.cli validate --strict feed_file.xml
+```
 
-#### Processing Metrics
-- `feed_items_processed_total`: Counter of processed items
-  - Labels: `status=[success|failure]`
-- `feed_processing_latency_seconds`: Processing time histogram
-- `feed_queue_size`: Current queue size by priority
+Strict mode enforces additional rules:
+- UTF-8 encoding requirement
+- Maximum content lengths:
+  - Titles: 200 characters
+  - Descriptions: 5000 characters
+- Required recommended elements (descriptions)
 
-#### Webhook Metrics
-- `webhook_retries_total`: Retry attempts counter
-  - Labels: `attempt=[1|2|3]`
-- `webhook_duration_seconds`: Webhook latency histogram
-- `webhook_payload_size_bytes`: Payload size histogram
-- `rate_limit_delay_seconds`: Current rate limit delay gauge
+If any issues are found, the command will exit with status code 1 and display a specific error message.
 
-#### Queue Metrics
-- `queue_overflow_total`: Queue overflow counter
-  - Labels: `priority=[high|medium|low]`
-- `queue_items_by_priority`: Current items by priority
+### Feed Validation
 
-### Dashboard Features
+The system includes a robust feed validation command that checks RSS feeds for validity and conformance to best practices:
 
-The Grafana dashboard provides:
+```bash
+# Basic validation
+python -m feed_processor.cli validate feed.xml
 
-#### Performance Panels
-- Processing success/failure rates
-- Queue size with thresholds
-- Latency trends
-- Queue distribution
+# Strict validation with additional checks
+python -m feed_processor.cli validate --strict feed.xml
+```
 
-#### System Health Panels
-- Webhook retry patterns
-- Rate limiting impact
-- Payload size trends
-- Queue overflow events
+### Validation Checks
 
-Features:
-- Real-time updates (5s refresh)
-- Historical data viewing
-- Interactive tooltips
-- Statistical summaries
+#### Basic Mode
+- RSS structure and required elements
+- Channel elements (title, link)
+- Feed items presence
+- URL format validation
+- Publication date format validation
+
+#### Strict Mode
+Additional checks in strict mode:
+- UTF-8 encoding requirement
+- Content length limits:
+  - Titles: 200 characters
+  - Descriptions: 5000 characters
+- Required recommended elements (descriptions)
+
+### Configuration
+
+Create a JSON configuration file with the following structure:
+
+```json
+{
+  "max_queue_size": 1000,
+  "webhook_endpoint": "https://your-webhook.com/endpoint",
+  "webhook_auth_token": "your-auth-token",
+  "webhook_batch_size": 10,
+  "metrics_port": 8000
+}
+```
+
+### Metrics
+
+The system exports the following Prometheus metrics:
+
+- Processing Rate (feeds/sec)
+- Queue Size
+- Average Processing Latency (ms)
+- Webhook Retries
+- Average Payload Size (bytes)
+- Rate Limit Delay (sec)
+- Queue Overflows
 
 ## Development
 
-### Testing
+### Setting Up Development Environment
 
+1. Install development dependencies:
 ```bash
-# Install dev dependencies
 pip install -r requirements-dev.txt
-
-# Run tests
-python -m pytest                    # All tests
-python -m pytest tests/unit/        # Unit tests
-python -m pytest tests/integration/ # Integration tests
-python -m pytest --cov             # Coverage report
 ```
 
-### Code Quality
-
+2. Run tests:
 ```bash
-# Format code
-black .
-
-# Type checking
-mypy .
-
-# Linting
-flake8
+pytest
 ```
 
-### Contributing
+### Project Structure
+
+```
+feed-processing-system/
+├── feed_processor/
+│   ├── __init__.py
+│   ├── cli.py           # Command-line interface
+│   ├── processor.py     # Core feed processor
+│   ├── webhook.py       # Webhook delivery system
+│   ├── metrics.py       # Prometheus metrics
+│   └── validators.py    # Feed validation
+├── tests/
+│   ├── __init__.py
+│   ├── test_cli.py
+│   ├── test_processor.py
+│   └── test_webhook.py
+├── requirements.txt
+├── requirements-dev.txt
+├── README.md
+└── changelog.md
+```
+
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch
-3. Write tests for new features
-4. Ensure all tests pass
+3. Make your changes
+4. Run tests and ensure they pass
 5. Submit a pull request
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Support
-
-For issues and feature requests, please use the GitHub issue tracker.
+This project is licensed under the MIT License - see the LICENSE file for details.
