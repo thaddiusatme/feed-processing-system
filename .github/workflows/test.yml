@@ -36,6 +36,10 @@ jobs:
       run: |
         python -m pytest tests/integration -v --cov=feed_processor --cov-report=xml --cov-append
         
+    - name: Run remaining tests
+      run: |
+        python -m pytest tests/*.py tests/performance/*.py -v --cov=feed_processor --cov-report=xml --cov-append
+        
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
       with:
