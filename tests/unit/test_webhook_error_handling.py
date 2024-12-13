@@ -3,13 +3,9 @@ from unittest.mock import Mock, patch
 import time
 from datetime import datetime
 
-from feed_processor.error_handling import (
-    ErrorHandler,
-    ErrorCategory,
-    ErrorSeverity,
-    CircuitBreaker
-)
+from feed_processor.error_handling import ErrorHandler, ErrorCategory, ErrorSeverity, CircuitBreaker
 from feed_processor.webhook_manager import WebhookManager
+
 
 class TestWebhookErrorHandling:
     @pytest.fixture
@@ -18,17 +14,13 @@ class TestWebhookErrorHandling:
 
     @pytest.fixture
     def webhook_manager(self):
-        return WebhookManager(
-            webhook_url="http://test.com/webhook",
-            rate_limit=0.1,
-            max_retries=3
-        )
+        return WebhookManager(webhook_url="http://test.com/webhook", rate_limit=0.1, max_retries=3)
 
     def test_rate_limit_error_handling(self, error_handler, webhook_manager):
-        with patch('requests.post') as mock_post:
+        with patch("requests.post") as mock_post:
             # Simulate rate limit error
             mock_post.side_effect = Exception("Rate limit exceeded")
-            
+
             with pytest.raises(Exception) as exc_info:
                 error_handler.handle_error(
                     error=exc_info.value,
@@ -36,9 +28,9 @@ class TestWebhookErrorHandling:
                     severity=ErrorSeverity.MEDIUM,
                     service="webhook",
                     details={"url": webhook_manager.webhook_url},
-                    retry_func=lambda: webhook_manager.send_webhook({"test": "data"})
+                    retry_func=lambda: webhook_manager.send_webhook({"test": "data"}),
                 )
-            
+
             assert "Rate limit exceeded" in str(exc_info.value)
 
     def test_concurrent_error_handling(self, error_handler, webhook_manager):
@@ -56,11 +48,8 @@ class TestWebhookErrorHandling:
                     )
                 time.sleep(0.1)
 
-        threads = [
-            threading.Thread(target=simulate_concurrent_failures)
-            for _ in range(3)
-        ]
-        
+        threads = [threading.Thread(target=simulate_concurrent_failures) for _ in range(3)]
+
         for thread in threads:
             thread.start()
         for thread in threads:
@@ -76,7 +65,7 @@ class TestWebhookErrorHandling:
             (ErrorCategory.DELIVERY_ERROR, ErrorSeverity.MEDIUM),
             (ErrorCategory.RATE_LIMIT_ERROR, ErrorSeverity.HIGH),
         ]
-        
+
         for category, severity in test_errors:
             error_handler.handle_error(
                 error=Exception(f"Test error: {category}"),
@@ -85,18 +74,21 @@ class TestWebhookErrorHandling:
                 service="webhook",
                 details={"test": True},
             )
-        
+
         # Verify error history (assuming we implement error history tracking)
         assert len(error_handler.get_recent_errors()) <= 100  # Max history size
 
-    @pytest.mark.parametrize("hour,expected_retries", [
-        (10, 3),  # Peak hours - fewer retries
-        (22, 5),  # Off-peak hours - more retries
-    ])
+    @pytest.mark.parametrize(
+        "hour,expected_retries",
+        [
+            (10, 3),  # Peak hours - fewer retries
+            (22, 5),  # Off-peak hours - more retries
+        ],
+    )
     def test_time_based_retry_strategy(self, error_handler, hour):
-        with patch('datetime.datetime') as mock_datetime:
+        with patch("datetime.datetime") as mock_datetime:
             mock_datetime.now.return_value = datetime(2024, 1, 1, hour, 0)
-            
+
             error_handler.handle_error(
                 error=Exception("Test error"),
                 category=ErrorCategory.DELIVERY_ERROR,
@@ -104,6 +96,6 @@ class TestWebhookErrorHandling:
                 service="webhook",
                 details={"hour": hour},
             )
-            
+
             # Verify retry count based on time of day
             assert error_handler._get_max_retries(hour) == expected_retries

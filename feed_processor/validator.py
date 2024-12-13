@@ -20,9 +20,11 @@ import os
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class ValidationResult:
     """Represents the result of a feed validation."""
+
     is_valid: bool
     errors: List[str]
     warnings: List[str]
@@ -40,9 +42,10 @@ class ValidationResult:
         """Convert the validation result to JSON."""
         return json.dumps(self.to_dict(), indent=2)
 
+
 class FeedValidator:
     """Enhanced feed validator with caching and parallel validation support."""
-    
+
     def __init__(self, strict_mode: bool = False, use_cache: bool = False, cache_ttl: int = 3600):
         """Initialize the feed validator."""
         self.strict_mode = strict_mode
@@ -66,7 +69,7 @@ class FeedValidator:
         """Set up async resources."""
         self.session = aiohttp.ClientSession()
         return self
-        
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Clean up async resources."""
         if self.session:
@@ -100,7 +103,7 @@ class FeedValidator:
                     stats=stats,
                     encoding=encoding,
                     validation_time=(datetime.now() - start_time).total_seconds(),
-                    error_type=error_type
+                    error_type=error_type,
                 )
 
             # Check file size
@@ -115,17 +118,19 @@ class FeedValidator:
                     stats=stats,
                     encoding=encoding,
                     validation_time=(datetime.now() - start_time).total_seconds(),
-                    error_type=error_type
+                    error_type=error_type,
                 )
 
             # Detect encoding and parse feed
-            with open(feed_path, 'rb') as f:
+            with open(feed_path, "rb") as f:
                 raw_content = f.read()
                 try:
-                    encoding = chardet.detect(raw_content)['encoding'] or 'utf-8'
+                    encoding = chardet.detect(raw_content)["encoding"] or "utf-8"
                     content = raw_content.decode(encoding)
                 except UnicodeDecodeError as e:
-                    errors.append(f"Invalid encoding: {encoding} for file '{feed_path}'. Error: {str(e)}")
+                    errors.append(
+                        f"Invalid encoding: {encoding} for file '{feed_path}'. Error: {str(e)}"
+                    )
                     error_type = "critical"
                     return ValidationResult(
                         is_valid=False,
@@ -134,7 +139,7 @@ class FeedValidator:
                         stats=stats,
                         encoding=encoding,
                         validation_time=(datetime.now() - start_time).total_seconds(),
-                        error_type=error_type
+                        error_type=error_type,
                     )
 
             # Parse feed
@@ -142,7 +147,9 @@ class FeedValidator:
 
             # Check for basic parsing errors
             if feed.bozo:
-                errors.append(f"Feed parsing error: {str(feed.bozo_exception)} for file '{feed_path}'")
+                errors.append(
+                    f"Feed parsing error: {str(feed.bozo_exception)} for file '{feed_path}'"
+                )
                 error_type = "critical"
                 return ValidationResult(
                     is_valid=False,
@@ -151,12 +158,14 @@ class FeedValidator:
                     stats=stats,
                     encoding=encoding,
                     validation_time=(datetime.now() - start_time).total_seconds(),
-                    error_type=error_type
+                    error_type=error_type,
                 )
 
             # Validate feed structure
             if not feed.feed:
-                errors.append(f"Invalid feed structure: missing channel information for file '{feed_path}'")
+                errors.append(
+                    f"Invalid feed structure: missing channel information for file '{feed_path}'"
+                )
                 error_type = "critical"
                 return ValidationResult(
                     is_valid=False,
@@ -165,32 +174,36 @@ class FeedValidator:
                     stats=stats,
                     encoding=encoding,
                     validation_time=(datetime.now() - start_time).total_seconds(),
-                    error_type=error_type
+                    error_type=error_type,
                 )
 
             # Required channel elements
             missing_required = False
-            if not feed.feed.get('title'):
+            if not feed.feed.get("title"):
                 errors.append(f"Missing required element: channel title for file '{feed_path}'")
                 missing_required = True
-            if not feed.feed.get('link'):
+            if not feed.feed.get("link"):
                 errors.append(f"Missing required element: channel link for file '{feed_path}'")
                 missing_required = True
-            if not feed.feed.get('description'):
-                errors.append(f"Missing required element: channel description for file '{feed_path}'")
+            if not feed.feed.get("description"):
+                errors.append(
+                    f"Missing required element: channel description for file '{feed_path}'"
+                )
                 missing_required = True
 
             # Validate dates
             has_format_error = False
-            if feed.feed.get('pubDate'):
+            if feed.feed.get("pubDate"):
                 try:
                     feedparser._parse_date(feed.feed.pubDate)
                 except (ValueError, AttributeError, TypeError) as e:
-                    errors.append(f"Invalid publication date in channel for file '{feed_path}'. Error: {str(e)}")
+                    errors.append(
+                        f"Invalid publication date in channel for file '{feed_path}'. Error: {str(e)}"
+                    )
                     has_format_error = True
 
             # Validate URLs
-            if feed.feed.get('link') and not feed.feed['link'].startswith(('http://', 'https://')):
+            if feed.feed.get("link") and not feed.feed["link"].startswith(("http://", "https://")):
                 errors.append(f"Invalid URL format in channel link for file '{feed_path}'")
                 has_format_error = True
 
@@ -205,59 +218,69 @@ class FeedValidator:
                     stats=stats,
                     encoding=encoding,
                     validation_time=(datetime.now() - start_time).total_seconds(),
-                    error_type=error_type
+                    error_type=error_type,
                 )
 
             for item in feed.entries:
                 # Required elements
-                if not item.get('title'):
+                if not item.get("title"):
                     errors.append(f"Missing required element: item title for file '{feed_path}'")
                     missing_required = True
-                if not item.get('link'):
+                if not item.get("link"):
                     errors.append(f"Missing required element: item link for file '{feed_path}'")
                     missing_required = True
 
                 # Validate dates
-                if item.get('pubDate'):
+                if item.get("pubDate"):
                     try:
                         feedparser._parse_date(item.pubDate)
                     except (ValueError, AttributeError, TypeError) as e:
-                        errors.append(f"Invalid publication date in item for file '{feed_path}'. Error: {str(e)}")
+                        errors.append(
+                            f"Invalid publication date in item for file '{feed_path}'. Error: {str(e)}"
+                        )
                         has_format_error = True
 
                 # Validate URLs
-                if item.get('link') and not item['link'].startswith(('http://', 'https://')):
+                if item.get("link") and not item["link"].startswith(("http://", "https://")):
                     errors.append(f"Invalid URL format in item link for file '{feed_path}'")
                     has_format_error = True
 
                 # Validate GUID length
-                if item.get('guid') and len(item['guid']) > 512:
-                    errors.append(f"GUID exceeds maximum length of 512 characters for file '{feed_path}'")
+                if item.get("guid") and len(item["guid"]) > 512:
+                    errors.append(
+                        f"GUID exceeds maximum length of 512 characters for file '{feed_path}'"
+                    )
                     has_format_error = True
 
                 # Validate image URLs
-                if item.get('image'):
-                    if not isinstance(item['image'], str) or not item['image'].startswith(('http://', 'https://')):
+                if item.get("image"):
+                    if not isinstance(item["image"], str) or not item["image"].startswith(
+                        ("http://", "https://")
+                    ):
                         errors.append(f"Invalid image URL format for file '{feed_path}'")
                         has_format_error = True
 
             # Additional checks in strict mode
             if self.strict_mode:
                 # Check content length
-                if feed.feed.get('description') and len(feed.feed['description']) > 4000:
-                    errors.append(f"Channel description exceeds maximum length for file '{feed_path}'")
+                if feed.feed.get("description") and len(feed.feed["description"]) > 4000:
+                    errors.append(
+                        f"Channel description exceeds maximum length for file '{feed_path}'"
+                    )
                     missing_required = True
 
                 for item in feed.entries:
-                    if item.get('description') and len(item['description']) > 4000:
-                        errors.append(f"Item description exceeds maximum length for file '{feed_path}'")
+                    if item.get("description") and len(item["description"]) > 4000:
+                        errors.append(
+                            f"Item description exceeds maximum length for file '{feed_path}'"
+                        )
                         missing_required = True
 
             # Collect statistics
             stats = {
-                'item_count': len(feed.entries),
-                'has_images': any(item.get('image') for item in feed.entries),
-                'has_categories': any(item.get('tags') for item in feed.entries),
+                "item_count": len(feed.entries),
+                "has_images": any(item.get("image") for item in feed.entries),
+                "has_categories": any(item.get("tags") for item in feed.entries),
             }
 
             # Set error type based on the types of errors found
@@ -280,7 +303,7 @@ class FeedValidator:
                 stats=stats,
                 encoding=encoding,
                 validation_time=(datetime.now() - start_time).total_seconds(),
-                error_type=error_type
+                error_type=error_type,
             )
 
             if self.use_cache:
@@ -297,5 +320,5 @@ class FeedValidator:
                 stats=stats,
                 encoding=encoding,
                 validation_time=(datetime.now() - start_time).total_seconds(),
-                error_type="critical"
+                error_type="critical",
             )

@@ -2,11 +2,13 @@ import pytest
 from unittest.mock import Mock
 import os
 
+
 @pytest.fixture(autouse=True)
 def mock_env_vars(monkeypatch):
     """Mock environment variables for testing."""
     monkeypatch.setenv("INOREADER_TOKEN", "test_token")
     monkeypatch.setenv("WEBHOOK_URL", "http://test.com/webhook")
+
 
 @pytest.fixture
 def mock_queue():
@@ -15,6 +17,7 @@ def mock_queue():
     queue.empty.return_value = False
     queue.get.return_value = {"id": "1", "title": "Test"}
     return queue
+
 
 @pytest.fixture
 def mock_webhook_manager():

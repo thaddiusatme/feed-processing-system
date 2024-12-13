@@ -7,11 +7,8 @@ from unittest.mock import patch, MagicMock
 from datetime import datetime, timedelta
 from typing import Dict, Any, List
 
-from feed_processor.error_handling import (
-    ErrorHandler,
-    ErrorCategory,
-    ErrorSeverity
-)
+from feed_processor.error_handling import ErrorHandler, ErrorCategory, ErrorSeverity
+
 
 class TestErrorLoggingPipeline:
     @pytest.fixture
@@ -29,7 +26,7 @@ class TestErrorLoggingPipeline:
         """Test complete logging pipeline from error to storage"""
         # Step 1: Generate various types of errors
         errors = self._generate_test_errors()
-        
+
         # Step 2: Process errors through handler
         logged_errors = []
         for error_info in errors:
@@ -41,18 +38,18 @@ class TestErrorLoggingPipeline:
                     category=error_info["category"],
                     severity=error_info["severity"],
                     service=error_info["service"],
-                    details=error_info["details"]
+                    details=error_info["details"],
                 )
                 logged_errors.append(result)
-        
+
         # Step 3: Verify system logs
         system_log_file = log_dir / "system.log"
         with patch("logging.FileHandler") as mock_handler:
             mock_handler.baseFilename = str(system_log_file)
-            
+
             # Verify all errors were logged
             assert mock_handler.handle.call_count >= len(errors)
-            
+
             # Verify log format and content
             for call in mock_handler.handle.call_args_list:
                 record = call[0][0]
@@ -74,13 +71,13 @@ class TestErrorLoggingPipeline:
                         category=error_info["category"],
                         severity=error_info["severity"],
                         service=error_info["service"],
-                        details=error_info["details"]
+                        details=error_info["details"],
                     )
-            
+
             # Verify Airtable records
             create_calls = mock_table.create.call_args_list
             assert len(create_calls) > 0
-            
+
             for call in create_calls:
                 record = call[0][0]
                 # Verify sensitive data was removed
@@ -103,9 +100,9 @@ class TestErrorLoggingPipeline:
                     category=ErrorCategory.SYSTEM_ERROR,
                     severity=ErrorSeverity.CRITICAL,
                     service="core_system",
-                    details={"impact": "high"}
+                    details={"impact": "high"},
                 )
-            
+
             # Verify notification was sent
             assert mock_post.called
             notification_data = mock_post.call_args[1]["json"]
@@ -116,13 +113,13 @@ class TestErrorLoggingPipeline:
         """Test log rotation and cleanup functionality"""
         max_log_size = 1024  # 1KB
         max_log_age = timedelta(days=7)
-        
+
         # Create some old log files
         old_log = log_dir / "system.log.1"
         old_log.write_text("Old log content")
         old_time = time.time() - (max_log_age.days + 1) * 86400
         os.utime(str(old_log), (old_time, old_time))
-        
+
         # Generate enough errors to trigger rotation
         large_message = "x" * (max_log_size // 10)
         for _ in range(20):
@@ -134,13 +131,13 @@ class TestErrorLoggingPipeline:
                     category=ErrorCategory.SYSTEM_ERROR,
                     severity=ErrorSeverity.LOW,
                     service="test",
-                    details={"size": len(large_message)}
+                    details={"size": len(large_message)},
                 )
-        
+
         # Verify log rotation
         assert (log_dir / "system.log").exists()
         assert (log_dir / "system.log.1").exists()
-        
+
         # Verify old logs were cleaned up
         assert not old_log.exists()
 
@@ -148,12 +145,8 @@ class TestErrorLoggingPipeline:
         """Test error metrics collection and aggregation"""
         # Generate errors across different categories and severities
         errors = self._generate_test_errors()
-        expected_counts = {
-            "category": {},
-            "severity": {},
-            "service": {}
-        }
-        
+        expected_counts = {"category": {}, "severity": {}, "service": {}}
+
         # Process errors and track expected counts
         for error_info in errors:
             try:
@@ -164,26 +157,23 @@ class TestErrorLoggingPipeline:
                     category=error_info["category"],
                     severity=error_info["severity"],
                     service=error_info["service"],
-                    details=error_info["details"]
+                    details=error_info["details"],
                 )
-                
+
                 # Update expected counts
                 cat = error_info["category"].value
                 sev = error_info["severity"].value
                 svc = error_info["service"]
-                
+
                 expected_counts["category"][cat] = expected_counts["category"].get(cat, 0) + 1
                 expected_counts["severity"][sev] = expected_counts["severity"].get(sev, 0) + 1
                 expected_counts["service"][svc] = expected_counts["service"].get(svc, 0) + 1
-        
+
         # Verify metrics
         metrics = error_handler.get_error_metrics()
         assert metrics["errors_by_category"] == expected_counts["category"]
         assert metrics["errors_by_severity"] == expected_counts["severity"]
-        assert all(
-            metrics["circuit_breaker_states"].get(svc)
-            for svc in expected_counts["service"]
-        )
+        assert all(metrics["circuit_breaker_states"].get(svc) for svc in expected_counts["service"])
 
     @staticmethod
     def _generate_test_errors() -> List[Dict[str, Any]]:
@@ -194,20 +184,14 @@ class TestErrorLoggingPipeline:
                 "category": ErrorCategory.API_ERROR,
                 "severity": ErrorSeverity.HIGH,
                 "service": "inoreader",
-                "details": {
-                    "api_key": "secret",
-                    "endpoint": "/auth"
-                }
+                "details": {"api_key": "secret", "endpoint": "/auth"},
             },
             {
                 "message": "Rate limit exceeded",
                 "category": ErrorCategory.RATE_LIMIT_ERROR,
                 "severity": ErrorSeverity.MEDIUM,
                 "service": "webhook",
-                "details": {
-                    "limit": 100,
-                    "current": 150
-                }
+                "details": {"limit": 100, "current": 150},
             },
             {
                 "message": "Database connection failed",
@@ -216,7 +200,7 @@ class TestErrorLoggingPipeline:
                 "service": "database",
                 "details": {
                     "connection_string": "sensitive_info",
-                    "error_code": "CONNECTION_REFUSED"
-                }
-            }
+                    "error_code": "CONNECTION_REFUSED",
+                },
+            },
         ]
