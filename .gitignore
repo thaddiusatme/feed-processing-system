@@ -34,17 +34,31 @@ ENV/
 .vscode/
 *.swp
 *.swo
+*.sublime-workspace
+*.sublime-project
 
 # Logs
 logs/
 *.log
 
+# Coverage
+.coverage
+coverage.xml
+htmlcov/
+
+# Cache
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local development
+*.local
+local_*
+
 # Documentation
 docs/_build/
 
 # Testing
-.coverage
-htmlcov/
 .pytest_cache/
 
 # macOS

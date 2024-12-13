@@ -1,3 +1,48 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "feed-processor"
+version = "0.1.0"
+description = "A system for processing and analyzing RSS/Atom feeds"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "Development Team"}
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "requests>=2.31.0",
+    "aiohttp>=3.9.1",
+    "spacy>=3.7.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.14.0",
+    "pytest-xdist>=3.6.1",
+    "black>=23.12.0",
+    "flake8>=6.1.0",
+    "mypy>=1.7.1",
+]
+
+[tool.setuptools]
+packages = ["feed_processor"]
+
 [tool.black]
 line-length = 100
 target-version = ['py38']

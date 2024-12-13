@@ -150,6 +150,29 @@ The system exports the following Prometheus metrics:
 - Rate Limit Delay (sec)
 - Queue Overflows
 
+## Project Structure
+
+```
+feed_processor/
+├── config/          # Configuration management
+├── core/            # Core processing logic
+├── queues/          # Queue implementations
+├── metrics/         # Metrics and monitoring
+├── validation/      # Feed validation
+├── webhook/         # Webhook handling
+└── errors.py        # Centralized error handling
+```
+
+### Key Components
+
+- **Config**: Centralized configuration management for all components
+- **Core**: Main processing logic and orchestration
+- **Queues**: Priority-based queue system with content-specific implementations
+- **Metrics**: Prometheus metrics and performance monitoring
+- **Validation**: Feed validation and verification
+- **Webhook**: Webhook delivery and management
+- **Errors**: Unified error handling system
+
 ## Development
 
 ### Setting Up Development Environment
@@ -162,28 +185,6 @@ pip install -r requirements-dev.txt
 2. Run tests:
 ```bash
 pytest
-```
-
-### Project Structure
-
-```
-feed-processing-system/
-├── feed_processor/
-│   ├── __init__.py
-│   ├── cli.py           # Command-line interface
-│   ├── processor.py     # Core feed processor
-│   ├── webhook.py       # Webhook delivery system
-│   ├── metrics.py       # Prometheus metrics
-│   └── validators.py    # Feed validation
-├── tests/
-│   ├── __init__.py
-│   ├── test_cli.py
-│   ├── test_processor.py
-│   └── test_webhook.py
-├── requirements.txt
-├── requirements-dev.txt
-├── README.md
-└── changelog.md
 ```
 
 ## Contributing
