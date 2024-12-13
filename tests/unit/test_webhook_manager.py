@@ -1,11 +1,7 @@
-import time
-from datetime import datetime
-from unittest.mock import Mock, patch
-
 import pytest
-import requests
+from unittest.mock import patch
 
-from feed_processor.webhook_manager import WebhookManager, WebhookResponse
+from feed_processor.webhook_manager import WebhookManager
 
 
 @pytest.fixture

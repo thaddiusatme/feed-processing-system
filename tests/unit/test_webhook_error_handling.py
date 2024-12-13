@@ -1,11 +1,12 @@
 import time
 from datetime import datetime
-from unittest.mock import Mock, patch
+from unittest.mock import patch
+import threading
 
 import pytest
 
-from feed_processor.error_handling import (CircuitBreaker, ErrorCategory,
-                                           ErrorHandler, ErrorSeverity)
+from feed_processor.error_handling import (ErrorCategory, ErrorHandler,
+                                         ErrorSeverity)
 from feed_processor.webhook_manager import WebhookManager
 
 
@@ -58,8 +59,7 @@ class TestWebhookErrorHandling:
             thread.join()
 
         # Verify circuit breaker state
-        cb = error_handler._get_circuit_breaker("webhook")
-        assert cb.state == "open"
+        assert error_handler.get_circuit_breaker("webhook").state == "open"
 
     def test_error_history_tracking(self, error_handler):
         test_errors = [
@@ -79,6 +79,26 @@ class TestWebhookErrorHandling:
 
         # Verify error history (assuming we implement error history tracking)
         assert len(error_handler.get_recent_errors()) <= 100  # Max history size
+
+    @pytest.mark.parametrize(
+        "hour,max_retries",
+        [
+            (10, 3),  # Peak hours - fewer retries
+            (22, 5),  # Off-peak hours - more retries
+        ],
+    )
+    def test_time_based_retry_strategy(self, error_handler, hour, max_retries):
+        with patch("datetime.datetime") as mock_datetime:
+            mock_datetime.now.return_value = datetime(2024, 1, 1, hour, 0)
+
+            error_handler.handle_error(
+                error=Exception("Test error"),
+                category=ErrorCategory.DELIVERY_ERROR,
+                severity=ErrorSeverity.MEDIUM,
+                service="webhook",
+                details={"test": True},
+                max_retries=max_retries
+            )
 
     @pytest.mark.parametrize(
         "hour,expected_retries",
