@@ -1,7 +1,9 @@
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, Mock
+import time
+import requests
 
-from feed_processor.webhook_manager import WebhookManager
+from feed_processor.webhook.manager import WebhookManager
 
 
 @pytest.fixture

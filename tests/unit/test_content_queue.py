@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from feed_processor.content_queue import ContentQueue, QueuedContent
+from feed_processor.queues.content import ContentQueue, QueuedContent
 
 
 @pytest.fixture

@@ -143,15 +143,15 @@ except SpecificError as e:
 def monitored_operation():
     start_time = time.time()
     start_memory = get_memory_usage()
-    
+
     try:
         result = perform_operation()
-        
+
         # Record metrics
         duration = time.time() - start_time
         memory_used = get_memory_usage() - start_memory
         record_metrics(duration, memory_used)
-        
+
         return result
     except Exception as e:
         record_error_metrics()
@@ -164,12 +164,12 @@ class ManagedResource:
     def __init__(self, max_size):
         self.max_size = max_size
         self.current_size = 0
-        
+
     def __enter__(self):
         # Resource acquisition with monitoring
         monitor_resource_acquisition()
         return self
-        
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         # Resource cleanup with verification
         cleanup_and_verify()

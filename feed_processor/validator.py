@@ -101,3 +101,33 @@ class FeedValidator:
                         errors.append("Invalid publication date format")
 
         return ValidationResult(valid=len(errors) == 0, errors=errors)
+
+
+class ReadabilityAnalyzer:
+    """Analyzer for content readability metrics."""
+
+    def __init__(self):
+        """Initialize the readability analyzer."""
+        pass
+
+    def analyze(self, text: str) -> dict:
+        """Analyze text readability.
+        
+        Args:
+            text: Text content to analyze
+            
+        Returns:
+            Dictionary containing readability metrics
+        """
+        # Basic implementation - can be expanded with more metrics
+        words = text.split()
+        sentences = text.split('.')
+        
+        metrics = {
+            'word_count': len(words),
+            'sentence_count': len(sentences),
+            'avg_words_per_sentence': len(words) / max(len(sentences), 1),
+            'avg_word_length': sum(len(word) for word in words) / max(len(words), 1)
+        }
+        
+        return metrics

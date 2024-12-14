@@ -5,9 +5,9 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 import requests
 
-from feed_processor.content_queue import ContentQueue
-from feed_processor.processor import FeedProcessor
-from feed_processor.webhook_manager import WebhookResponse
+from feed_processor.queues.content import ContentQueue
+from feed_processor.core.processor import FeedProcessor
+from feed_processor.webhook.manager import WebhookResponse
 
 
 @pytest.fixture
