@@ -16,12 +16,13 @@ from feed_processor.storage.models import ContentType
 def inoreader_config():
     """Create Inoreader configuration from environment variables."""
     token = os.getenv("INOREADER_TOKEN")
-    if not token:
-        pytest.skip("INOREADER_TOKEN environment variable not set")
+    app_id = os.getenv("INOREADER_APP_ID")
+    api_key = os.getenv("INOREADER_API_KEY")
 
-    return InoreaderConfig(
-        api_token=token, rate_limit_delay=0.2, max_retries=3, feed_tag_filter="user/-/label/tech"
-    )
+    if not all([token, app_id, api_key]):
+        pytest.skip("Required Inoreader environment variables not set")
+
+    return InoreaderConfig(token=token, app_id=app_id, api_key=api_key, max_retries=3)
 
 
 @pytest.fixture
@@ -54,7 +55,9 @@ async def test_get_stream_contents(inoreader_client):
 @pytest.mark.asyncio
 async def test_invalid_token_handling():
     """Test handling of invalid API token."""
-    config = InoreaderConfig(api_token="invalid_token", rate_limit_delay=0.2, max_retries=1)
+    config = InoreaderConfig(
+        token="invalid_token", app_id="invalid_app_id", api_key="invalid_api_key", max_retries=1
+    )
     client = InoreaderClient(config)
 
     with pytest.raises(APIError) as exc_info:

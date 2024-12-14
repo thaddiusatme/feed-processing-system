@@ -1,11 +1,15 @@
-"""Content queue for managing feed items."""
+"""Content queue module for managing feed items."""
 
+import asyncio
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
-from .metrics import ITEMS_ADDED, ITEMS_REMOVED, QUEUE_OVERFLOWS, QUEUE_SIZE
-from .metrics.prometheus import metrics
+import structlog
+
+from .metrics.metrics import ITEMS_ADDED, ITEMS_REMOVED, QUEUE_OVERFLOWS, QUEUE_SIZE
+
+logger = structlog.get_logger(__name__)
 
 
 @dataclass
@@ -14,92 +18,116 @@ class QueueItem:
 
     id: str
     content: Dict[str, Any]
-    timestamp: datetime
-    priority: int = 0
-    retries: int = 0
-    max_retries: int = 3
+    timestamp: float
 
 
 class ContentQueue:
-    """Queue for managing content items with metrics tracking."""
+    """A queue for managing feed content items."""
 
-    def __init__(self, max_size: Optional[int] = None):
+    def __init__(self, max_size: int = 1000):
         """Initialize the content queue.
 
         Args:
-            max_size: Optional maximum queue size
+            max_size: Maximum number of items allowed in the queue
         """
-        self.items: List[QueueItem] = []
         self.max_size = max_size
+        self._queue = asyncio.Queue(maxsize=max_size)
+        self._size = 0
 
-        # Initialize metrics using predefined metrics
-        self.queue_size = metrics.register_gauge(QUEUE_SIZE.name, QUEUE_SIZE.description)
-        self.queue_overflows = metrics.register_counter(
-            QUEUE_OVERFLOWS.name, QUEUE_OVERFLOWS.description
-        )
-        self.items_added = metrics.register_counter(ITEMS_ADDED.name, ITEMS_ADDED.description)
-        self.items_removed = metrics.register_counter(ITEMS_REMOVED.name, ITEMS_REMOVED.description)
-
-    def add(self, item: QueueItem) -> bool:
+    async def add(self, item: QueueItem) -> bool:
         """Add an item to the queue.
 
         Args:
-            item: QueueItem to add
+            item: Item to add to the queue
 
         Returns:
             bool: True if item was added successfully
         """
-        if self.max_size and len(self.items) >= self.max_size:
-            self.queue_overflows.inc()
+        try:
+            if self._size >= self.max_size:
+                QUEUE_OVERFLOWS.inc()
+                logger.warning(
+                    "Queue overflow",
+                    queue_size=self._size,
+                    max_size=self.max_size,
+                    item_id=item.id,
+                )
+                return False
+
+            await self._queue.put(item)
+            self._size += 1
+            ITEMS_ADDED.inc()
+            QUEUE_SIZE.set(self._size)
+            logger.debug("Item added to queue", item_id=item.id, queue_size=self._size)
+            return True
+
+        except Exception as e:
+            logger.error("Error adding item to queue", error=str(e), item_id=item.id)
             return False
 
-        self.items.append(item)
-        self.queue_size.set(len(self.items))
-        self.items_added.inc()
-        return True
-
-    def remove(self, item_id: str) -> Optional[QueueItem]:
-        """Remove and return an item from the queue.
-
-        Args:
-            item_id: ID of item to remove
+    async def get(self) -> Optional[QueueItem]:
+        """Get the next item from the queue.
 
         Returns:
-            Optional[QueueItem]: Removed item or None if not found
+            Optional[QueueItem]: Next item from the queue or None if queue is empty
         """
-        for i, item in enumerate(self.items):
-            if item.id == item_id:
-                removed = self.items.pop(i)
-                self.queue_size.set(len(self.items))
-                self.items_removed.inc()
-                return removed
-        return None
+        try:
+            item = await self._queue.get()
+            self._size -= 1
+            ITEMS_REMOVED.inc()
+            QUEUE_SIZE.set(self._size)
+            logger.debug("Item removed from queue", item_id=item.id, queue_size=self._size)
+            return item
 
-    def get(self, item_id: str) -> Optional[QueueItem]:
-        """Get an item from the queue without removing it.
-
-        Args:
-            item_id: ID of item to get
-
-        Returns:
-            Optional[QueueItem]: Item or None if not found
-        """
-        for item in self.items:
-            if item.id == item_id:
-                return item
-        return None
+        except asyncio.QueueEmpty:
+            return None
+        except Exception as e:
+            logger.error("Error getting item from queue", error=str(e))
+            return None
 
     def clear(self):
         """Clear all items from the queue."""
-        items_count = len(self.items)
-        self.items = []
-        self.queue_size.set(0)
-        self.items_removed.inc(items_count)
+        while not self._queue.empty():
+            try:
+                self._queue.get_nowait()
+                self._size -= 1
+                ITEMS_REMOVED.inc()
+            except asyncio.QueueEmpty:
+                break
+
+        self._size = 0
+        QUEUE_SIZE.set(0)
+        logger.info("Queue cleared")
+
+    def empty(self) -> bool:
+        """Check if the queue is empty.
+
+        Returns:
+            bool: True if the queue is empty
+        """
+        return self._queue.empty()
+
+    def qsize(self) -> int:
+        """Get the current size of the queue.
+
+        Returns:
+            int: Current size of the queue
+        """
+        return self._size
+
+    @property
+    def size(self) -> int:
+        """Get the current size of the queue.
+
+        Returns:
+            int: Current queue size
+        """
+        return self._size
 
     def __len__(self) -> int:
-        """Return the number of items in the queue."""
-        return len(self.items)
+        """Get the current size of the queue.
 
-    def __bool__(self) -> bool:
-        """Return True if queue has items."""
-        return bool(self.items)
+        Returns:
+            int: Current queue size
+        """
+        return self._size

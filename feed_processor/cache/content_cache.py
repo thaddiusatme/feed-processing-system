@@ -137,11 +137,7 @@ class ContentCache:
 
             # Update cache
             now = datetime.now()
-            self._cache[key] = CacheEntry(
-                content=content,
-                timestamp=now,
-                compressed=compressed
-            )
+            self._cache[key] = CacheEntry(content=content, timestamp=now, compressed=compressed)
             self._access_order[key] = now
             metrics.cache_size_bytes.set(self._get_size())
 
@@ -171,10 +167,7 @@ class ContentCache:
         Returns:
             Total size in bytes
         """
-        return sum(
-            len(str(entry.content).encode())
-            for entry in self._cache.values()
-        )
+        return sum(len(str(entry.content).encode()) for entry in self._cache.values())
 
     def __len__(self) -> int:
         """Get the number of items in the cache.

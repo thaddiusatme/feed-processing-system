@@ -14,6 +14,11 @@ FeedProcessor
    :undoc-members:
    :show-inheritance:
 
+Inoreader Client
+~~~~~~~~~~~~~
+
+.. include:: inoreader.rst
+
 PriorityQueue
 ~~~~~~~~~~~~
 

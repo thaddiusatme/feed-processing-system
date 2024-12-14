@@ -14,7 +14,9 @@ from feed_processor.core.errors import APIError
 def client():
     """Create a test instance of InoreaderClient."""
     return InoreaderClient(
-        api_token="test-token",
+        token="test-token",
+        app_id="test-app-id",
+        api_key="test-api-key",
         base_url="https://test.inoreader.com/reader/api/0",
         rate_limit_delay=0.01,  # Small delay for testing
         max_retries=2,
@@ -44,9 +46,16 @@ def mock_response():
 def test_client_initialization():
     """Test client initialization with parameters."""
     client = InoreaderClient(
-        api_token="test-token", base_url="https://custom.url", rate_limit_delay=0.5, max_retries=3
+        token="test-token",
+        app_id="test-app-id",
+        api_key="test-api-key",
+        base_url="https://custom.url",
+        rate_limit_delay=0.5,
+        max_retries=3,
     )
-    assert client.api_token == "test-token"
+    assert client.token == "test-token"
+    assert client.app_id == "test-app-id"
+    assert client.api_key == "test-api-key"
     assert client.base_url == "https://custom.url"
     assert client.rate_limit_delay == 0.5
     assert client.max_retries == 3
@@ -66,7 +75,11 @@ def test_get_unread_items_success(mock_request, client, mock_response):
 
     mock_request.assert_called_once()
     args, kwargs = mock_request.call_args
+    # Verify OAuth token in header
     assert kwargs["headers"]["Authorization"] == "Bearer test-token"
+    # Verify AppId and AppKey in URL parameters
+    assert "AppId=test-app-id" in kwargs["url"]
+    assert "AppKey=test-api-key" in kwargs["url"]
     assert "count=10" in kwargs["url"]
 
 

@@ -50,6 +50,34 @@ class MetricsRegistry:
         self._metrics[name] = histogram
         return histogram
 
+    def increment_counter(self, name: str, labels: Dict[str, str] = None):
+        """Increment a counter metric."""
+        if name not in self._metrics:
+            raise ValueError(f"Metric {name} not registered")
+
+        metric = self._metrics[name]
+        if not isinstance(metric, Counter):
+            raise ValueError(f"Metric {name} is not a counter")
+
+        if labels:
+            metric.labels(**labels).inc()
+        else:
+            metric.inc()
+
+    def observe_histogram(self, name: str, value: float, labels: Dict[str, str] = None):
+        """Observe a value for a histogram metric."""
+        if name not in self._metrics:
+            raise ValueError(f"Metric {name} not registered")
+
+        metric = self._metrics[name]
+        if not isinstance(metric, Histogram):
+            raise ValueError(f"Metric {name} is not a histogram")
+
+        if labels:
+            metric.labels(**labels).observe(value)
+        else:
+            metric.observe(value)
+
     def get_metric(self, name: str) -> Any:
         """Get a registered metric by name."""
         return self._metrics.get(name)

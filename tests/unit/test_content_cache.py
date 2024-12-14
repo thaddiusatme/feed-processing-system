@@ -58,10 +58,7 @@ class TestContentCache(unittest.TestCase):
         self.cache.put(key, self.test_content)
         cached_content = self.cache.get(key)
         self.assertEqual(cached_content, self.test_content)
-        self.assertEqual(
-            float(self.registry.get_sample_value("cache_hits_total")),
-            1.0
-        )
+        self.assertEqual(float(self.registry.get_sample_value("cache_hits_total")), 1.0)
 
     def test_cache_ttl(self) -> None:
         """Test that cached items expire after TTL."""
@@ -81,10 +78,7 @@ class TestContentCache(unittest.TestCase):
             cached_content = self.cache.get(key)
 
             self.assertIsNone(cached_content)
-            self.assertEqual(
-                float(self.registry.get_sample_value("cache_misses_total")),
-                1.0
-            )
+            self.assertEqual(float(self.registry.get_sample_value("cache_misses_total")), 1.0)
 
     def test_cache_max_size(self) -> None:
         """Test that cache respects max size limit."""
@@ -97,10 +91,7 @@ class TestContentCache(unittest.TestCase):
 
         # Verify cache size hasn't exceeded max
         self.assertLessEqual(len(self.cache), self.cache_config.max_size)
-        self.assertGreater(
-            float(self.registry.get_sample_value("cache_evictions_total")),
-            0.0
-        )
+        self.assertGreater(float(self.registry.get_sample_value("cache_evictions_total")), 0.0)
 
     def test_cache_compression(self) -> None:
         """Test content compression functionality."""
@@ -116,9 +107,7 @@ class TestContentCache(unittest.TestCase):
         self.assertEqual(cached_content, large_content)
 
         # Verify compression was applied
-        self.assertIsNotNone(
-            self.registry.get_sample_value("cache_compression_ratio")
-        )
+        self.assertIsNotNone(self.registry.get_sample_value("cache_compression_ratio"))
 
     def test_cache_hit_miss_metrics(self) -> None:
         """Test cache hit/miss metrics."""
@@ -126,19 +115,13 @@ class TestContentCache(unittest.TestCase):
 
         # Test miss
         self.cache.get(key)
-        self.assertEqual(
-            float(self.registry.get_sample_value("cache_misses_total")),
-            1.0
-        )
+        self.assertEqual(float(self.registry.get_sample_value("cache_misses_total")), 1.0)
 
         # Test hit
         self.cache.put(key, self.test_content)
         cached_content = self.cache.get(key)
         self.assertEqual(cached_content, self.test_content)
-        self.assertEqual(
-            float(self.registry.get_sample_value("cache_hits_total")),
-            1.0
-        )
+        self.assertEqual(float(self.registry.get_sample_value("cache_hits_total")), 1.0)
 
     def test_cache_eviction(self) -> None:
         """Test LRU eviction policy."""
@@ -156,10 +139,7 @@ class TestContentCache(unittest.TestCase):
         self.assertIsNotNone(self.cache.get("key_0"))
         # key_1 should have been evicted
         self.assertIsNone(self.cache.get("key_1"))
-        self.assertGreater(
-            float(self.registry.get_sample_value("cache_evictions_total")),
-            0.0
-        )
+        self.assertGreater(float(self.registry.get_sample_value("cache_evictions_total")), 0.0)
 
 
 if __name__ == "__main__":

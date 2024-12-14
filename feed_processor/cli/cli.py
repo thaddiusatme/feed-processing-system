@@ -14,7 +14,7 @@ from urllib.parse import urlparse
 import click
 from prometheus_client import start_http_server
 
-from .metrics import (
+from feed_processor.metrics.metrics import (
     PROCESSING_LATENCY,
     PROCESSING_RATE,
     QUEUE_OVERFLOWS,
@@ -24,16 +24,16 @@ from .metrics import (
     WEBHOOK_RETRIES,
     start_metrics_server,
 )
-from .processor import FeedProcessor
-from .validator import FeedValidator
-from .webhook import WebhookConfig
+from feed_processor.processor import FeedProcessor
+from feed_processor.validator import FeedValidator
+from feed_processor.webhook.webhook import WebhookConfig
 
 
 def load_config(config_path: Optional[Path] = None) -> dict:
     """Load configuration from file or use defaults."""
     default_config = {
         "max_queue_size": 1000,
-        "webhook_endpoint": None,
+        "webhook_url": None,
         "webhook_auth_token": None,
         "webhook_batch_size": 10,
         "metrics_port": 8000,
@@ -115,24 +115,25 @@ def cli():
 )
 @click.option("--port", type=int, default=8000, help="Port to run API server on")
 @click.option("--metrics-port", type=int, default=9090, help="Port to expose metrics on")
-def start(config, port, metrics_port):
+@async_command
+async def start(config, port, metrics_port):
     """Start the feed processor."""
     try:
         cfg = load_config(config)
 
         processor = FeedProcessor(
             max_queue_size=cfg["max_queue_size"],
-            webhook_endpoint=cfg["webhook_endpoint"],
+            webhook_url=cfg["webhook_url"],
             webhook_auth_token=cfg["webhook_auth_token"],
             webhook_batch_size=cfg["webhook_batch_size"],
             metrics_port=cfg["metrics_port"],
         )
 
         # Import here to avoid circular imports
-        from .api import start_api_server
+        from feed_processor.api import start_api_server
 
         click.echo("Starting feed processor and API server...")
-        processor.start()
+        await processor.start()
 
         # Start API server
         api_thread = start_api_server(
@@ -147,11 +148,11 @@ def start(config, port, metrics_port):
         # Keep the main thread running
         try:
             while True:
-                time.sleep(1)
+                await asyncio.sleep(1)
                 print_metrics()
-                time.sleep(9)  # Print metrics every 10 seconds
+                await asyncio.sleep(9)  # Print metrics every 10 seconds
         except KeyboardInterrupt:
-            processor.stop()
+            await processor.stop()
             click.echo("\nShutting down...")
 
     except Exception as e:
@@ -164,37 +165,38 @@ def start(config, port, metrics_port):
 @click.option(
     "--config", "-c", type=click.Path(exists=True, path_type=Path), help="Path to config file"
 )
-def process(feed_file, config):
+@async_command
+async def process(feed_file, config):
     """Process a feed file."""
     try:
         cfg = load_config(config)
 
         processor = FeedProcessor(
             max_queue_size=cfg["max_queue_size"],
-            webhook_endpoint=cfg["webhook_endpoint"],
+            webhook_url=cfg["webhook_url"],
             webhook_auth_token=cfg["webhook_auth_token"],
             webhook_batch_size=cfg["webhook_batch_size"],
         )
 
-        processor.start()
+        await processor.start()
 
         try:
             with open(feed_file) as f:
                 content = f.read()
                 feed_data = {"content": content}
 
-                if processor.add_feed(feed_data):
+                if await processor.add_feed(feed_data):
                     click.echo(f"Successfully added feed from {feed_file}")
                 else:
                     click.echo(f"Failed to add feed from {feed_file}", err=True)
                     sys.exit(1)
 
             # Wait briefly for processing
-            time.sleep(1)
+            await asyncio.sleep(1)
             print_metrics()
 
         finally:
-            processor.stop()
+            await processor.stop()
 
     except Exception as e:
         click.echo(f"Error: {str(e)}", err=True)
@@ -341,7 +343,8 @@ def validate_old(feed_file):
 @click.option(
     "--config", "-c", type=click.Path(exists=True, path_type=Path), help="Path to config file"
 )
-def metrics(config):
+@async_command
+async def metrics(config):
     """Display current metrics."""
     try:
         print_metrics()
@@ -427,7 +430,8 @@ def validate_old(feed_file):
 @click.option("--token", "-t", required=True, help="Authentication token")
 @click.option("--batch-size", "-b", type=int, default=10, help="Batch size for webhook delivery")
 @click.option("--output", "-o", type=click.Path(path_type=Path), help="Output config file path")
-def configure(endpoint, token, batch_size, output):
+@async_command
+async def configure(endpoint, token, batch_size, output):
     """Configure webhook settings."""
     try:
         if not validate_webhook_url(endpoint):
@@ -435,7 +439,7 @@ def configure(endpoint, token, batch_size, output):
             sys.exit(1)
 
         config = {
-            "webhook_endpoint": endpoint,
+            "webhook_url": endpoint,
             "webhook_auth_token": token,
             "webhook_batch_size": batch_size,
         }

@@ -1,13 +1,5 @@
-"""Webhook package for feed processing system."""
+"""Webhook delivery package."""
 
-from .config import WebhookConfig
-from .delivery import WebhookDeliverySystem
-from .manager import WebhookError, WebhookManager, WebhookResponse
+from feed_processor.webhook.webhook import WebhookConfig, deliver_batch, deliver_webhook
 
-__all__ = [
-    "WebhookConfig",
-    "WebhookDeliverySystem",
-    "WebhookError",
-    "WebhookManager",
-    "WebhookResponse",
-]
+__all__ = ["WebhookConfig", "deliver_batch", "deliver_webhook"]

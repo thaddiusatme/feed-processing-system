@@ -35,12 +35,12 @@ summarizer = ContentSummarizer()
 
 # Example content
 text = """
-Artificial intelligence has made significant strides in recent years, transforming 
-various industries and creating new possibilities. Machine learning models can now 
-perform complex tasks with remarkable accuracy. Deep learning, in particular, has 
-revolutionized fields like computer vision and natural language processing. These 
-advances have led to practical applications in healthcare, finance, and autonomous 
-vehicles. However, challenges remain in areas such as model interpretability and 
+Artificial intelligence has made significant strides in recent years, transforming
+various industries and creating new possibilities. Machine learning models can now
+perform complex tasks with remarkable accuracy. Deep learning, in particular, has
+revolutionized fields like computer vision and natural language processing. These
+advances have led to practical applications in healthcare, finance, and autonomous
+vehicles. However, challenges remain in areas such as model interpretability and
 ethical considerations.
 """
 
@@ -105,11 +105,11 @@ class EnhancedFeedProcessor(FeedProcessor):
     def __init__(self):
         super().__init__()
         self.summarizer = ContentSummarizer()
-    
+
     def process_item(self, item):
         # Process the feed item
         processed_item = super().process_item(item)
-        
+
         # Add summaries
         if processed_item.content:
             try:
@@ -125,7 +125,7 @@ class EnhancedFeedProcessor(FeedProcessor):
                 processed_item.metadata['summary_quality'] = summary.confidence_score
             except Exception as e:
                 logger.error(f"Summarization failed: {str(e)}")
-        
+
         return processed_item
 ```
 

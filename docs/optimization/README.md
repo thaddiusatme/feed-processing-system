@@ -57,17 +57,17 @@ from feed_processor.config.processor_config import ProcessorConfig
 config = ProcessorConfig(
     # Enable/disable dynamic optimization
     enable_dynamic_optimization=True,
-    
+
     # Base processing parameters
     batch_size=100,
     min_batch_size=10,
     max_batch_size=500,
-    
+
     # Thread pool configuration
     concurrent_processors=4,
     min_processors=2,
     max_processors=16,
-    
+
     # Performance targets
     target_cpu_usage=70.0
 )
@@ -81,10 +81,10 @@ For more fine-grained control, you can adjust these additional parameters:
 config = ProcessorConfig(
     # Processing timeouts
     processing_timeout=300,  # seconds
-    
+
     # Polling intervals
     poll_interval=60,  # seconds
-    
+
     # Metrics configuration
     metrics_port=8000
 )

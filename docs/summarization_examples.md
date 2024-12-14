@@ -12,17 +12,17 @@ summarizer = ContentSummarizer()
 
 # Example news article
 news_article = """
-In a groundbreaking development, researchers at MIT have created a new type of 
-artificial neural network that can learn from significantly less data than 
-traditional models. The innovation, published today in Nature, combines 
-principles from neuroscience with machine learning algorithms. The team 
-demonstrated that their system can achieve similar accuracy to conventional 
-neural networks while using only 10% of the training data. This breakthrough 
-could make AI more accessible to applications where large datasets are not 
-available, such as rare disease diagnosis or small business analytics. The 
-researchers also noted improved interpretability of the model's decisions, 
-addressing a common criticism of deep learning systems. Industry experts have 
-called this development a significant step forward in making AI more practical 
+In a groundbreaking development, researchers at MIT have created a new type of
+artificial neural network that can learn from significantly less data than
+traditional models. The innovation, published today in Nature, combines
+principles from neuroscience with machine learning algorithms. The team
+demonstrated that their system can achieve similar accuracy to conventional
+neural networks while using only 10% of the training data. This breakthrough
+could make AI more accessible to applications where large datasets are not
+available, such as rare disease diagnosis or small business analytics. The
+researchers also noted improved interpretability of the model's decisions,
+addressing a common criticism of deep learning systems. Industry experts have
+called this development a significant step forward in making AI more practical
 and accessible for real-world applications.
 """
 
@@ -41,15 +41,15 @@ print("Confidence:", short_summary.confidence_score)
 ```python
 # Example of summarizing technical documentation
 tech_doc = """
-The PostgreSQL VACUUM command is an essential maintenance operation that reclaims 
-storage occupied by dead tuples. When you delete or update a row in PostgreSQL, 
-the database doesn't immediately remove the old version of the row. Instead, it 
-marks it as invalid and creates a new version. These invalid rows, called dead 
-tuples, accumulate over time and can impact performance. VACUUM identifies and 
-marks these dead tuples as space that can be reused by future operations. 
-Additionally, VACUUM updates the visibility map, which helps optimize index-only 
-scans. The ANALYZE option, often used with VACUUM, updates statistics about the 
-contents of tables, which the query planner uses to determine optimal execution 
+The PostgreSQL VACUUM command is an essential maintenance operation that reclaims
+storage occupied by dead tuples. When you delete or update a row in PostgreSQL,
+the database doesn't immediately remove the old version of the row. Instead, it
+marks it as invalid and creates a new version. These invalid rows, called dead
+tuples, accumulate over time and can impact performance. VACUUM identifies and
+marks these dead tuples as space that can be reused by future operations.
+Additionally, VACUUM updates the visibility map, which helps optimize index-only
+scans. The ANALYZE option, often used with VACUUM, updates statistics about the
+contents of tables, which the query planner uses to determine optimal execution
 plans.
 """
 
@@ -75,25 +75,25 @@ summarizer = ContentSummarizer()
 
 # Example related articles about a technology announcement
 article1 = """
-Apple today announced its latest M3 chip series, marking a significant leap in 
-Mac performance. The new chips, built on 3-nanometer technology, offer up to 
-60% faster CPU performance than M1. The company claims these processors will 
+Apple today announced its latest M3 chip series, marking a significant leap in
+Mac performance. The new chips, built on 3-nanometer technology, offer up to
+60% faster CPU performance than M1. The company claims these processors will
 revolutionize professional workflows and gaming on Mac platforms.
 """
 
 article2 = """
-Industry analysts predict Apple's new M3 chips will significantly impact the 
-PC market. Benchmark tests show the M3 outperforming competing processors in 
-both performance and energy efficiency. The 3nm manufacturing process gives 
-Apple a temporary advantage in the market, as competitors are still using 5nm 
+Industry analysts predict Apple's new M3 chips will significantly impact the
+PC market. Benchmark tests show the M3 outperforming competing processors in
+both performance and energy efficiency. The 3nm manufacturing process gives
+Apple a temporary advantage in the market, as competitors are still using 5nm
 technology.
 """
 
 article3 = """
-Software developers are rapidly updating their applications to take advantage 
-of Apple's M3 architecture. Professional tools like Adobe Creative Suite and 
-DaVinci Resolve have announced optimized versions coming in December 2023. 
-Gaming companies are also showing increased interest in Mac development due 
+Software developers are rapidly updating their applications to take advantage
+of Apple's M3 architecture. Professional tools like Adobe Creative Suite and
+DaVinci Resolve have announced optimized versions coming in December 2023.
+Gaming companies are also showing increased interest in Mac development due
 to the M3's enhanced graphics capabilities.
 """
 
@@ -114,14 +114,14 @@ print("\nConfidence Score:", result.confidence_score)
 
 Example output:
 ```
-Combined Summary: Apple's new M3 chip series represents a major advancement in Mac 
-performance, built on 3-nanometer technology offering 60% faster CPU performance 
-than M1. Benchmark tests demonstrate superior performance and energy efficiency 
-compared to competitors. Software developers, including Adobe and DaVinci Resolve, 
-are optimizing their applications for the M3 architecture, with gaming companies 
+Combined Summary: Apple's new M3 chip series represents a major advancement in Mac
+performance, built on 3-nanometer technology offering 60% faster CPU performance
+than M1. Benchmark tests demonstrate superior performance and energy efficiency
+compared to competitors. Software developers, including Adobe and DaVinci Resolve,
+are optimizing their applications for the M3 architecture, with gaming companies
 showing increased interest due to enhanced graphics capabilities.
 
-Common Themes: ['m3 chip', 'performance improvement', 'software optimization', 
+Common Themes: ['m3 chip', 'performance improvement', 'software optimization',
 'nanometer technology', 'gaming capabilities']
 
 Key Points:
@@ -135,7 +135,7 @@ Timeline:
 [
     {
         "date": "2023-12-01T00:00:00",
-        "content": "Professional tools like Adobe Creative Suite and DaVinci 
+        "content": "Professional tools like Adobe Creative Suite and DaVinci
         Resolve have announced optimized versions coming in December 2023"
     }
 ]
@@ -166,7 +166,7 @@ Confidence Score: 0.85
 class ResearchSummarizer:
     def __init__(self):
         self.summarizer = ContentSummarizer()
-    
+
     def generate_abstract(self, paper_sections):
         """Generate a comprehensive abstract from paper sections."""
         result = self.summarizer.summarize_multiple(
@@ -174,7 +174,7 @@ class ResearchSummarizer:
             desired_length=250,
             identify_timeline=False
         )
-        
+
         return {
             'abstract': result.abstractive_summary,
             'key_findings': result.key_points,
@@ -214,17 +214,17 @@ Key benefits:
 class SocialMediaAnalyzer:
     def __init__(self):
         self.summarizer = ContentSummarizer()
-    
+
     def analyze_thread(self, posts):
         # Combine posts into a coherent narrative
         thread_text = " ".join(posts)
-        
+
         # Generate brief summary
         summary = self.summarizer.summarize(
             thread_text,
             desired_length=30  # Keep it tweet-length
         )
-        
+
         return {
             'summary': summary.abstractive_summary,
             'key_points': summary.key_points[:3],  # Top 3 points
@@ -250,14 +250,14 @@ print("Key Points:", analysis['key_points'])
 class ContentCurator:
     def __init__(self):
         self.summarizer = ContentSummarizer()
-    
+
     def curate_content(self, articles, target_length=500):
         summaries = []
-        
+
         for article in articles:
             # Generate summary and metadata
             summary = self.summarizer.summarize(article['content'])
-            
+
             summaries.append({
                 'title': article['title'],
                 'summary': summary.abstractive_summary,
@@ -265,10 +265,10 @@ class ContentCurator:
                 'quality_score': summary.confidence_score,
                 'reading_time': len(summary.abstractive_summary.split()) // 200  # words per minute
             })
-        
+
         # Sort by quality score
         summaries.sort(key=lambda x: x['quality_score'], reverse=True)
-        
+
         return summaries
 
 # Example usage
@@ -312,13 +312,13 @@ def process_large_document(text, chunk_size=1000):
         ' '.join(words[i:i + chunk_size])
         for i in range(0, len(words), chunk_size)
     ]
-    
+
     # Summarize each chunk
     chunk_summaries = [
         summarizer.summarize(chunk).abstractive_summary
         for chunk in chunks
     ]
-    
+
     # Create final summary
     return summarizer.summarize(' '.join(chunk_summaries))
 ```
@@ -327,7 +327,7 @@ def process_large_document(text, chunk_size=1000):
 ```python
 def quality_focused_summary(text, min_confidence=0.7):
     summary = summarizer.summarize(text)
-    
+
     # If confidence is low, try different approaches
     if summary.confidence_score < min_confidence:
         # Try extractive only
@@ -337,6 +337,6 @@ def quality_focused_summary(text, min_confidence=0.7):
             min_length=50
         )
         return extractive_summary
-    
+
     return summary.abstractive_summary
 ```

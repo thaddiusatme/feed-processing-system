@@ -1,0 +1,25 @@
+{
+    "id": "sample_feed_1",
+    "feed": {
+        "title": "Sample Feed",
+        "description": "A sample RSS feed for testing",
+        "link": "http://example.com",
+        "lastBuildDate": "Sat, 14 Dec 2024 03:20:48 -0800",
+        "items": [
+            {
+                "title": "First Article",
+                "description": "This is a test article for our feed processing system.",
+                "link": "http://example.com/article1",
+                "guid": "http://example.com/article1",
+                "pubDate": "Sat, 14 Dec 2024 03:20:48 -0800"
+            },
+            {
+                "title": "Second Article",
+                "description": "Another test article with different content.",
+                "link": "http://example.com/article2",
+                "guid": "http://example.com/article2",
+                "pubDate": "Sat, 14 Dec 2024 03:20:48 -0800"
+            }
+        ]
+    }
+}

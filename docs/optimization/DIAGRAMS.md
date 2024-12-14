@@ -10,24 +10,24 @@ graph TB
         FP[Feed Processor] --> PO[Performance Optimizer]
         PO --> SM[System Metrics]
         PO --> PM[Processing Metrics]
-        
+
         subgraph Optimization Components
             SM --> BS[Batch Sizing]
             SM --> TC[Thread Control]
             PM --> BS
             PM --> TC
         end
-        
+
         BS --> Q[Content Queue]
         TC --> T[Thread Pool]
     end
-    
+
     subgraph External Systems
         IR[Inoreader API] --> FP
         FP --> WH[Webhook]
         M[Metrics System] --- PO
     end
-    
+
     style FP fill:#f9f,stroke:#333
     style PO fill:#bbf,stroke:#333
     style Q fill:#bfb,stroke:#333
@@ -43,11 +43,11 @@ sequenceDiagram
     participant SM as System Monitor
     participant Q as Content Queue
     participant T as Thread Pool
-    
+
     FP->>PO: Request optimization
     PO->>SM: Get system metrics
     SM-->>PO: Return metrics
-    
+
     alt High CPU Load
         PO->>Q: Decrease batch size
         PO->>T: Reduce thread count
@@ -55,7 +55,7 @@ sequenceDiagram
         PO->>Q: Increase batch size
         PO->>T: Increase thread count
     end
-    
+
     PO-->>FP: Apply optimized settings
 ```
 
@@ -67,12 +67,12 @@ graph LR
         C1[Low CPU] -->|Increase| C2[Target CPU]
         C2 -->|Decrease| C3[High CPU]
     end
-    
+
     subgraph Memory Usage
         M1[Available] -->|Consume| M2[In Use]
         M2 -->|Release| M1
     end
-    
+
     subgraph Thread States
         T1[Idle] -->|Assign Work| T2[Active]
         T2 -->|Complete| T1
@@ -91,19 +91,19 @@ graph TD
         IO[I/O Wait]
         ER[Error Rate]
     end
-    
+
     subgraph Calculation
         CPU --> CF[CPU Factor]
         MEM --> MF[Memory Factor]
         IO --> IF[I/O Factor]
         ER --> EF[Error Factor]
-        
+
         CF --> OBS[Optimal Batch Size]
         MF --> OBS
         IF --> OBS
         EF --> OBS
     end
-    
+
     subgraph Bounds
         OBS --> |Max| MAX[Maximum Size]
         OBS --> |Min| MIN[Minimum Size]
@@ -119,7 +119,7 @@ stateDiagram-v2
     Active --> Idle: Work Complete
     Active --> Waiting: I/O Block
     Waiting --> Active: I/O Complete
-    
+
     state Active {
         [*] --> Processing
         Processing --> Optimizing: Check Load
@@ -136,19 +136,19 @@ graph LR
         SM[System Metrics] --> AG
         QM[Queue Metrics] --> AG
     end
-    
+
     subgraph Analysis
         AG --> CALC[Calculations]
         CALC --> TREND[Trend Analysis]
     end
-    
+
     subgraph Actions
         TREND --> ADJ[Adjustments]
         ADJ --> BS[Batch Size]
         ADJ --> TC[Thread Count]
         ADJ --> INT[Intervals]
     end
-    
+
     subgraph Monitoring
         BS --> DASH[Dashboard]
         TC --> DASH
@@ -166,7 +166,7 @@ graph TD
         Z3 -->|Recovery| Z2
         Z2 -->|Load Reduction| Z1
     end
-    
+
     subgraph Actions
         Z1 -->|"CPU < 50%"| A1[Increase Resources]
         Z2 -->|"CPU 50-80%"| A2[Maintain Balance]
@@ -183,13 +183,13 @@ graph TB
         E2[System Error] --> EH
         E3[External Error] --> EH
     end
-    
+
     subgraph Recovery Actions
         EH --> R1[Retry Logic]
         EH --> R2[Load Reduction]
         EH --> R3[Circuit Breaking]
     end
-    
+
     subgraph Optimization Impact
         R1 --> OPT[Optimizer]
         R2 --> OPT

@@ -13,7 +13,7 @@ graph TB
         WH[Webhook Manager]
         MT[Metrics]
     end
-    
+
     subgraph Interactions
         FP -->|Configures| PO
         PO -->|Adjusts| CQ
@@ -23,7 +23,7 @@ graph TB
         FP -->|Sends to| WH
         PO -->|Reports to| MT
     end
-    
+
     style FP fill:#f9f,stroke:#333
     style PO fill:#bbf,stroke:#333
     style CQ fill:#bfb,stroke:#333
@@ -38,16 +38,16 @@ graph TD
     CPU -->|> 80%| HighCPU[Reduce Load]
     CPU -->|50-80%| OptimalCPU[Maintain]
     CPU -->|< 50%| LowCPU[Increase Load]
-    
+
     HighCPU --> RA1[Reduce Batch Size]
     HighCPU --> RA2[Decrease Threads]
-    
+
     OptimalCPU --> OA1[Fine-tune Batch Size]
     OptimalCPU --> OA2[Optimize Thread Count]
-    
+
     LowCPU --> LA1[Increase Batch Size]
     LowCPU --> LA2[Add Threads]
-    
+
     style Start fill:#f9f
     style CPU fill:#bbf
     style HighCPU fill:#fbb
@@ -61,17 +61,17 @@ graph TD
 stateDiagram-v2
     [*] --> Initializing
     Initializing --> Optimizing
-    
+
     state Optimizing {
         [*] --> Monitoring
         Monitoring --> Analyzing: Collect Metrics
         Analyzing --> Adjusting: Decision
         Adjusting --> Monitoring: Apply Changes
     }
-    
+
     Optimizing --> Recovering: Error
     Recovering --> Optimizing: Resolved
-    
+
     note right of Optimizing
         Main processing loop
         Continuous optimization
@@ -86,20 +86,20 @@ flowchart TD
         F[Feed Data] --> P[Processor]
         C[Configuration] --> P
     end
-    
+
     subgraph Processing
         P --> Q[Queue]
         Q --> T[Thread Pool]
         T --> W[Webhook]
     end
-    
+
     subgraph Optimization
         M[Metrics] --> O[Optimizer]
         O --> D{Decisions}
         D -->|Batch| Q
         D -->|Threads| T
     end
-    
+
     style F fill:#f9f,stroke:#333
     style P fill:#bbf,stroke:#333
     style Q fill:#bfb,stroke:#333
@@ -113,12 +113,12 @@ gantt
     title Resource Allocation Over Time
     dateFormat  HH:mm
     axisFormat %H:%M
-    
+
     section Batch Size
     Initial Size      :a1, 00:00, 2m
     Increase         :a2, after a1, 3m
     Optimal Size     :a3, after a2, 5m
-    
+
     section Threads
     Base Threads     :t1, 00:00, 2m
     Scale Up        :t2, after t1, 2m
@@ -133,23 +133,23 @@ graph TB
         E1[Error Occurs] --> D[Detect Type]
         D --> T{Type?}
     end
-    
+
     subgraph Response
         T -->|Processing| P[Pause Processing]
         T -->|System| S[Scale Down]
         T -->|External| X[Circuit Break]
-        
+
         P --> R1[Retry Logic]
         S --> R2[Resource Recovery]
         X --> R3[Service Check]
     end
-    
+
     subgraph Recovery
         R1 --> N[Normal Operation]
         R2 --> N
         R3 --> N
     end
-    
+
     style E1 fill:#f99,stroke:#333
     style N fill:#9f9,stroke:#333
 ```
@@ -162,14 +162,14 @@ graph TB
         A[New Batch] --> M[Memory Pool]
         M --> P{Process}
     end
-    
+
     subgraph Usage
         P -->|Success| R[Release]
         P -->|Failure| F[Force Release]
         R --> M
         F --> M
     end
-    
+
     style M fill:#bbf,stroke:#333
     style P fill:#bfb,stroke:#333
 ```
@@ -185,7 +185,7 @@ stateDiagram-v2
     Blocked --> Ready: I/O Complete
     Running --> Ready: Complete Work
     Ready --> [*]: Shutdown
-    
+
     note right of Running
         Processing active batch
         Monitoring performance
@@ -200,11 +200,11 @@ graph TD
         Z1[CPU Load] --> M[Metrics]
         Z2[Memory Use] --> M
         Z3[I/O Wait] --> M
-        
+
         M --> O[Optimization Zone]
         O --> A[Actions]
     end
-    
+
     style Z1 fill:#f99,stroke:#333
     style Z2 fill:#9f9,stroke:#333
     style Z3 fill:#99f,stroke:#333
@@ -218,18 +218,18 @@ graph LR
         I[Ingest] --> V[Validate]
         V --> Q[Queue]
     end
-    
+
     subgraph Processing Stage
         Q --> B[Batch]
         B --> P[Process]
         P --> W[Wait]
     end
-    
+
     subgraph Output Stage
         W --> D[Deliver]
         D --> C[Confirm]
     end
-    
+
     style I fill:#f9f,stroke:#333
     style P fill:#bbf,stroke:#333
     style D fill:#bfb,stroke:#333

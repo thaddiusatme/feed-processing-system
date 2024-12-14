@@ -8,7 +8,7 @@ import os
 from enum import Enum, auto
 from typing import Dict, List, Optional, Union
 
-from prometheus_client import Counter, Gauge, Histogram, CollectorRegistry, REGISTRY
+from prometheus_client import REGISTRY, CollectorRegistry, Counter, Gauge, Histogram
 
 from .performance import track_performance
 from .prometheus import init_metrics, start_metrics_server
@@ -62,9 +62,10 @@ QUEUE_OVERFLOWS = Metric(
 
 
 class MetricsCollector:
-    """Legacy metrics collector for backward compatibility."""
+    """Collects and manages metrics for feed processing system."""
 
     def __init__(self):
+        """Initialize metrics collector with default values."""
         self.metrics = {}
 
     def register_metric(
@@ -101,29 +102,17 @@ class CacheMetrics:
                 return Gauge(name, help_text, registry=registry)
             return registry._names_to_collectors[name]
 
-        self.cache_hits = create_counter(
-            "cache_hits_total",
-            "Number of cache hits"
-        )
-        self.cache_misses = create_counter(
-            "cache_misses_total",
-            "Number of cache misses"
-        )
+        self.cache_hits = create_counter("cache_hits_total", "Number of cache hits")
+        self.cache_misses = create_counter("cache_misses_total", "Number of cache misses")
         self.cache_evictions = create_counter(
-            "cache_evictions_total",
-            "Number of cache entries evicted"
+            "cache_evictions_total", "Number of cache entries evicted"
         )
-        self.cache_errors = create_counter(
-            "cache_errors_total",
-            "Number of cache operation errors"
-        )
+        self.cache_errors = create_counter("cache_errors_total", "Number of cache operation errors")
         self.cache_compression_ratio = create_gauge(
-            "cache_compression_ratio",
-            "Ratio of compressed to uncompressed content size"
+            "cache_compression_ratio", "Ratio of compressed to uncompressed content size"
         )
         self.cache_size_bytes = create_gauge(
-            "cache_size_bytes",
-            "Total size of cached content in bytes"
+            "cache_size_bytes", "Total size of cached content in bytes"
         )
 
 
@@ -153,22 +142,18 @@ class FeedMetrics:
             return registry._names_to_collectors[name]
 
         self.feed_process_time = create_histogram(
-            "feed_process_seconds",
-            "Time spent processing feeds",
-            buckets=(0.1, 0.5, 1.0, 2.0, 5.0)
+            "feed_process_seconds", "Time spent processing feeds", buckets=(0.1, 0.5, 1.0, 2.0, 5.0)
         )
         self.feed_process_success = create_counter(
-            "feed_process_success_total",
-            "Number of successfully processed feeds"
+            "feed_process_success_total", "Number of successfully processed feeds"
         )
         self.feed_process_failure = create_counter(
-            "feed_process_failure_total",
-            "Number of failed feed processing attempts"
+            "feed_process_failure_total", "Number of failed feed processing attempts"
         )
         self.feed_content_size = create_histogram(
             "feed_content_bytes",
             "Size of processed feed content in bytes",
-            buckets=(1000, 10000, 100000, 1000000)
+            buckets=(1000, 10000, 100000, 1000000),
         )
 
 

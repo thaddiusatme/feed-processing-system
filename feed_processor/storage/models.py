@@ -1,11 +1,14 @@
-"""
-Data models for content storage.
-"""
-from datetime import datetime
+"""Data models for content storage."""
+
+import logging
+import re
+from datetime import datetime, timezone
 from enum import Enum
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, Field, HttpUrl
+
+logger = logging.getLogger(__name__)
 
 
 class ContentType(str, Enum):
@@ -19,38 +22,69 @@ class ContentType(str, Enum):
 class ContentStatus(str, Enum):
     """Status of content processing."""
 
-    PENDING = "PENDING"
-    PROCESSED = "PROCESSED"
-    ERROR = "ERROR"
+    NEW = "new"
+    PROCESSED = "processed"
+    ERROR = "error"
+
+
+class SourceMetadata(BaseModel):
+    """Model for source metadata."""
+
+    feedId: str
+    originalUrl: HttpUrl
+    publishDate: datetime
+    author: Optional[str] = None
+    tags: List[str] = Field(default_factory=list)
 
 
 class ContentItem(BaseModel):
-    """Model for content items to be stored in Airtable."""
+    """Model for content items."""
 
-    title: str = Field(..., max_length=255)
-    content: str = Field(..., max_length=2000)
-    url: HttpUrl
-    content_type: ContentType
-    published_at: datetime
-    source_id: str = Field(..., description="Original source identifier")
-    status: ContentStatus = Field(default=ContentStatus.PENDING)
-    error_message: Optional[str] = None
-    processing_attempts: int = Field(default=0)
-    processed_at: Optional[datetime] = None
+    title: str = Field(..., description="Content title")
+    contentType: ContentType = Field(..., alias="content_type")
+    brief: Optional[str] = Field(None, max_length=2000)
+    sourceMetadata: SourceMetadata
+
+    def to_db_record(self) -> dict:
+        """Convert the model to database record format."""
+        return {
+            "title": self.title,
+            "content_type": self.contentType.value,
+            "brief": self.brief,
+            "feed_id": self.sourceMetadata.feedId,
+            "original_url": str(self.sourceMetadata.originalUrl),
+            "publish_date": self.sourceMetadata.publishDate.isoformat(),
+            "author": self.sourceMetadata.author,
+            "processed_status": ContentStatus.NEW.value,
+        }
 
     def to_airtable_record(self) -> dict:
         """Convert the model to Airtable record format."""
+        # Strip HTML tags from description
+        description = re.sub(r"<[^>]+>", "", self.brief) if self.brief else ""
+
+        # Ensure date is in Airtable-compatible format (YYYY-MM-DD)
+        try:
+            # Convert to UTC timezone if not already
+            if self.sourceMetadata.publishDate.tzinfo is None:
+                publish_date = self.sourceMetadata.publishDate.replace(tzinfo=timezone.utc)
+            else:
+                publish_date = self.sourceMetadata.publishDate.astimezone(timezone.utc)
+
+            # Format as YYYY-MM-DD which Airtable accepts
+            publish_date = publish_date.strftime("%Y-%m-%d")
+        except Exception as e:
+            logger.error(f"Failed to format date: {e}")
+            publish_date = None
+
         return {
             "fields": {
-                "Title": self.title,
-                "Content": self.content,
-                "URL": str(self.url),
-                "Content Type": self.content_type.value,
-                "Published At": self.published_at.isoformat(),
-                "Source ID": self.source_id,
-                "Status": self.status.value,
-                "Error Message": self.error_message,
-                "Processing Attempts": self.processing_attempts,
-                "Processed At": self.processed_at.isoformat() if self.processed_at else None,
+                "Title": self.title[:99] if self.title else "",  # Truncate if too long
+                "Content Type": self.contentType.value,
+                "Description": description[:500],  # Truncate if too long
+                "FeedID": self.sourceMetadata.feedId,
+                "Link": str(self.sourceMetadata.originalUrl),
+                "PublishDate": publish_date,
+                "Author": (self.sourceMetadata.author or "")[:99],  # Truncate if too long
             }
         }

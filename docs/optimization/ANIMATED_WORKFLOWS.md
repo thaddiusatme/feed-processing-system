@@ -11,13 +11,13 @@ sequenceDiagram
     participant CQ as Content Queue
     participant TP as Thread Pool
     participant M as Metrics
-    
+
     note over FP,M: Normal Operation Phase
     FP->>PO: Check optimization
     activate PO
     PO->>M: Get current metrics
     M-->>PO: Return metrics
-    
+
     alt Low Load
         PO->>CQ: Increase batch size
         PO->>TP: Add threads
@@ -25,10 +25,10 @@ sequenceDiagram
         PO->>CQ: Decrease batch size
         PO->>TP: Remove threads
     end
-    
+
     PO-->>FP: Update complete
     deactivate PO
-    
+
     note over FP,M: Processing Phase
     loop Processing
         FP->>CQ: Get batch
@@ -46,12 +46,12 @@ sequenceDiagram
     participant EH as Error Handler
     participant PO as Performance Optimizer
     participant TP as Thread Pool
-    
+
     note over FP,TP: Error Detection
     FP->>EH: Report error
     activate EH
     EH->>PO: Notify optimizer
-    
+
     alt System Error
         PO->>TP: Pause threads
         PO->>FP: Reduce load
@@ -59,7 +59,7 @@ sequenceDiagram
         PO->>FP: Adjust batch size
         PO->>TP: Retry processing
     end
-    
+
     note over FP,TP: Recovery Phase
     PO->>FP: Resume normal operation
     deactivate EH
@@ -72,11 +72,11 @@ sequenceDiagram
     participant S as System
     participant PO as Performance Optimizer
     participant R as Resources
-    
+
     loop Continuous Monitoring
         S->>PO: Report metrics
         activate PO
-        
+
         alt Scale Up
             PO->>R: Increase resources
             note over R: Resources expanding
@@ -87,7 +87,7 @@ sequenceDiagram
             PO->>R: Fine-tune
             note over R: Resources stable
         end
-        
+
         R-->>S: Apply changes
         deactivate PO
     end
@@ -100,11 +100,11 @@ sequenceDiagram
     participant P as Processor
     participant MM as Memory Manager
     participant GC as Garbage Collector
-    
+
     loop Processing Cycle
         P->>MM: Allocate memory
         activate MM
-        
+
         alt Memory Available
             MM-->>P: Memory allocated
         else Memory Low
@@ -112,7 +112,7 @@ sequenceDiagram
             GC-->>MM: Cleanup complete
             MM-->>P: Memory allocated
         end
-        
+
         P->>MM: Process complete
         MM->>GC: Release memory
         deactivate MM
@@ -126,11 +126,11 @@ sequenceDiagram
     participant PO as Performance Optimizer
     participant TP as Thread Pool
     participant W as Worker Threads
-    
+
     loop Optimization Cycle
         PO->>TP: Check utilization
         activate TP
-        
+
         alt Under-utilized
             TP->>W: Scale down threads
             note over W: Threads decreasing
@@ -141,7 +141,7 @@ sequenceDiagram
             TP->>W: Maintain threads
             note over W: Threads stable
         end
-        
+
         W-->>TP: Update complete
         TP-->>PO: Status report
         deactivate TP
@@ -156,12 +156,12 @@ sequenceDiagram
     participant B as Batcher
     participant Q as Queue
     participant W as Workers
-    
+
     loop Processing Cycle
         FP->>B: Request batch
         activate B
         B->>Q: Get items
-        
+
         alt Queue Full
             Q-->>B: Maximum batch
             B->>W: Process large batch
@@ -172,7 +172,7 @@ sequenceDiagram
             Q-->>B: Small batch
             B->>W: Process small batch
         end
-        
+
         W-->>B: Processing complete
         B-->>FP: Batch complete
         deactivate B

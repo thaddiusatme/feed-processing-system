@@ -214,7 +214,7 @@ services:
     environment:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_REPLICATION: 'on'
-      
+
   db-replica:
     image: postgres:13
     volumes:
@@ -255,7 +255,7 @@ groups:
           severity: warning
         annotations:
           summary: High content analysis processing time
-          
+
       - alert: HighErrorRate
         expr: rate(content_analysis_errors_total[5m]) > 0.1
         for: 5m

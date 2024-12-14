@@ -5,6 +5,11 @@ A robust and scalable system for processing RSS/Atom feeds with webhook delivery
 ## Features
 
 - Queue-based feed processing with configurable size and priority
+- Asynchronous API server with:
+  - Thread-safe operations
+  - Proper async/await support
+  - Graceful shutdown handling
+  - Enhanced error reporting
 - Webhook delivery with:
   - Configurable retry mechanism
   - Rate limiting and batch processing
@@ -27,6 +32,11 @@ A robust and scalable system for processing RSS/Atom feeds with webhook delivery
   - Dedicated configuration management
   - Pluggable queue implementations
   - Extensible validation system
+- SQLite Database Integration:
+  - Persistent storage of feed items
+  - Tag-based organization
+  - Efficient querying and retrieval
+  - Automatic schema management
 - Batch processing support
 - Real-time metrics monitoring with Prometheus integration
 - Configurable webhook settings
@@ -84,7 +94,8 @@ feed_processor/
 │   ├── webhook_config.py
 │   └── processor_config.py
 ├── core/           # Core processing logic
-│   └── processor.py
+│   ├── processor.py
+│   └── database.py
 ├── queues/         # Queue implementations
 │   ├── base.py
 │   └── content.py
@@ -131,6 +142,7 @@ MAX_QUEUE_SIZE=1000
 BATCH_SIZE=50
 RETRY_COUNT=3
 RATE_LIMIT=100
+DB_PATH=feeds.db
 ```
 
 For detailed configuration options, see `config/` directory.
@@ -197,6 +209,7 @@ Configuration options (via environment variables):
 - `BATCH_SIZE`: Number of items to process in each batch (default: 50)
 - `FETCH_INTERVAL`: Time in seconds between fetch operations (default: 60.0)
 - `METRICS_PORT`: Port for Prometheus metrics server (default: 9090)
+- `DB_PATH`: Path to SQLite database file (default: feeds.db)
 
 Monitor the pipeline using:
 - Prometheus metrics at http://localhost:9090

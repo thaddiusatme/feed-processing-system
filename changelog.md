@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- SQLite Database Integration:
+  - Implemented Database class for persistent storage
+  - Added schema for feeds and tags tables
+  - Created methods for adding and retrieving feed items
+  - Added tag-based organization system
+  - Implemented efficient querying with pagination
+  - Added comprehensive error handling
+  - Integrated with FeedProcessor for automatic storage
 - Airtable Integration:
   - Implemented AirtableClient with production-ready features
   - Added robust error handling and retries
@@ -16,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Created Pydantic models for data validation
   - Added comprehensive metrics tracking
   - Implemented integration tests
+- Airtable integration for storing feed items
+- New `AirtableClient` class for handling Airtable API communication
+- Environment variables support for Airtable configuration (API key, base ID, table name)
 - Inoreader Integration Improvements:
   - Consolidated and improved Inoreader client implementation
   - Added automatic content type detection (BLOG, VIDEO, SOCIAL)
@@ -425,6 +436,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Real-time resource utilization tracking
   - Performance trend analysis
   - System health monitoring
+- Implemented worker scaling functionality in WorkerManager:
+  - Automatic scaling based on load thresholds
+  - Graceful worker shutdown with task completion
+  - Container-based worker management
+  - Comprehensive metrics collection
+  - Thread-safe operations with asyncio locks
+  - Timeout handling for worker startup
+  - Task rebalancing during scaling operations
+- Improved API Server Implementation:
+  - Added proper async support for feed processing endpoints
+  - Implemented thread-safe server shutdown mechanism
+  - Enhanced error handling in async routes
+  - Added better webhook status reporting
+  - Fixed queue integration with async operations
 
 ### Changed
 - Code Organization:
@@ -472,6 +497,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fixed thread safety issues in cache operations
   - Added comprehensive metrics tracking for hits, misses, and evictions
   - Improved code organization and documentation
+- Inoreader API Authentication:
+  - Moved AppId and AppKey from request headers to URL parameters
+  - Maintained OAuth token in Authorization header
+  - Updated parameter capitalization to match API requirements (AppId, AppKey)
+
+  Migration Note:
+  If you're upgrading from a previous version, you'll need to:
+  1. Update your InoreaderConfig initialization to use the new parameter names:
+     ```python
+     config = InoreaderConfig(
+         token="your_token",  # Previously api_token
+         app_id="your_app_id",  # New parameter
+         api_key="your_api_key",  # New parameter
+         ...
+     )
+     ```
+  2. No changes needed to environment variables or .env files
+  3. If you're making direct API calls, move AppId and AppKey from headers to URL parameters
 
 ### Fixed
 - Thread Safety:
@@ -534,6 +577,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Resolved conflicts in test files
   - Maintained code quality during merges
   - Preserved functionality while improving code structure
+- Fixed extractive summarization tests to properly validate behavior:
+  - Updated test content to ensure proper LLM summarization triggering
+  - Added test cases for minimal and short content handling
+  - Improved test coverage for different content lengths
+  - Fixed test cases to properly mock LLM manager responses
+  - Added proper error handling and metric collection for failed validations
 
 ### Technical Debt
 - Need to set up proper virtual environment for development
@@ -558,81 +607,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-- Content caching system with:
-  - LRU (Least Recently Used) eviction policy
-  - TTL (Time-To-Live) support for cache entries
-  - Content compression using zlib
-  - Thread-safe operations
-  - Comprehensive metrics tracking:
-    - Cache hits/misses
-    - Evictions
-    - Compression ratios
-    - Cache size
-    - Error tracking
-- Lessons Learned:
-  1. **Data Serialization**:
-     - When compressing/decompressing data, always use a proper serialization format (e.g., JSON) instead of string conversion
-     - String conversion can lose type information and structure, leading to inconsistent behavior
-     - Consider using more robust serialization libraries (e.g., pickle, msgpack) for complex objects
-
-  2. **Metrics in Tests**:
-     - Each test should have its own isolated metrics registry to avoid interference
-     - Use environment variables (e.g., PYTEST_CURRENT_TEST) to detect test environment
-     - Implement lazy initialization for global metrics to ensure proper test setup
-
-  3. **Thread Safety**:
-     - When cleaning up shared resources (e.g., metric registries), be careful about concurrent modification
-     - Create a copy of collection keys before iteration if the collection might be modified
-     - Use appropriate locks and thread-safe data structures for concurrent access
-
-  4. **Test Design**:
-     - Mock time-dependent operations to ensure consistent test behavior
-     - Clean up resources properly in setUp/tearDown to maintain test isolation
-     - Use descriptive assertions to make test failures more informative
-- Content Analysis Pipeline:
-  - Implemented NLP pipeline with spaCy integration
-  - Created hierarchical category taxonomy
-  - Added ML-based content categorization
-  - Implemented keyword extraction
-  - Added readability scoring
-  - Created comprehensive test suite
-  - Added performance metrics tracking
-  - Implemented sentiment analysis:
-    - Overall sentiment detection
-    - Entity-level sentiment analysis
-    - Aspect-based sentiment analysis
-    - Sentence-level sentiment tracking
-    - Confidence scoring
-    - Comprehensive test coverage
-  - Implemented topic analysis:
-    - Topic extraction using clustering
-    - Topic trend analysis
-    - Emerging topic detection
-    - Related topic identification
-    - Topic coherence scoring
-    - Document-topic assignment
-    - Comprehensive test coverage
-  - Implemented content quality scoring:
-    - Multi-dimensional quality assessment
-    - Readability analysis
-    - Coherence scoring
-    - Engagement potential
-    - Originality detection
-    - Fact density calculation
-    - Quality issue flagging
-    - Detailed metric reporting
-    - Comprehensive test coverage
-
-### Changed
-- Improved metrics initialization to support test isolation
-- Enhanced content serialization in cache to preserve data types
-- Optimized registry cleanup in tests to avoid concurrent modification
-
 ### Fixed
-- Content cache now properly preserves dictionary types during compression/decompression
-- Fixed duplicate metrics registration in test environment
-- Resolved dictionary modification during test registry cleanup
+- Fixed Airtable PublishDate formatting:
+  - Updated date format to YYYY-MM-DD to match Airtable's requirements
+  - Added proper timezone handling for dates
+  - Added fallback for timezone-naive dates
+- Removed unsupported "Tags" field from Airtable records
+- Improved error handling for date parsing and formatting
+- Fixed content enhancement pipeline tests
+  - Improved summary validation handling for empty and invalid summaries
+  - Updated fact parsing to match EnhancementResult requirements
+  - Enhanced test coverage for summary validation and fact verification
+  - Fixed test cases to properly mock LLM manager responses
+  - Added proper error handling and metric collection for failed validations
 
 ## [0.1.0] - 2024-01-01
 
