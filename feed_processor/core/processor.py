@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional, Set
 from feed_processor.config.processor_config import ProcessorConfig
 from feed_processor.core.clients.inoreader import InoreaderClient
 from feed_processor.core.errors import APIError, ProcessingError
-from feed_processor.metrics.prometheus import MetricsCollector, Counter, Gauge, Histogram
+from feed_processor.metrics.prometheus import metrics
 from feed_processor.queues.content import ContentQueue, QueuedContent
 from feed_processor.webhook.manager import WebhookManager, WebhookResponse
 
@@ -20,40 +20,28 @@ from feed_processor.webhook.manager import WebhookManager, WebhookResponse
 class ProcessingMetrics:
     """Represents processing metrics for the feed processor."""
 
-    processed_count: int = 0
-    error_count: int = 0
-    start_time: datetime = field(default_factory=lambda: datetime.now())
-    last_process_time: float = 0.0
-    queue_length: int = 0
+    items_processed: int = 0
+    items_failed: int = 0
+    items_queued: int = 0
+    items_delivered: int = 0
+    processing_errors: int = 0
+    delivery_errors: int = 0
+    last_processed: Optional[datetime] = None
+    last_delivered: Optional[datetime] = None
+    processing_time: float = 0.0
+    delivery_time: float = 0.0
+    batch_sizes: List[int] = field(default_factory=list)
     processed_items: Set[str] = field(default_factory=set)
 
-    def get_error_rate(self) -> float:
-        """Calculate error rate based on processed and error counts."""
-        if self.processed_count == 0:
-            return 0.0
-        return self.error_count / self.processed_count
+    def add_batch_size(self, size: int) -> None:
+        """Add a batch size to track."""
+        self.batch_sizes.append(size)
+        if len(self.batch_sizes) > 100:  # Keep last 100 batches
+            self.batch_sizes.pop(0)
 
-    def has_processed(self, item_id: str) -> bool:
-        """Check if an item has been processed.
-
-        Args:
-            item_id: ID of the item to check
-
-        Returns:
-            True if the item has been processed
-        """
-        return item_id in self.processed_items
-
-    def mark_processed(self, item_id: str) -> None:
-        """Mark an item as processed.
-
-        Args:
-            item_id: ID of the item to mark
-        """
-        self.processed_items.add(item_id)
-        if len(self.processed_items) > 10000:  # Prevent unbounded growth
-            old_items = sorted(self.processed_items)[:5000]
-            self.processed_items = set(old_items[5000:])
+    def get_avg_batch_size(self) -> float:
+        """Get average batch size."""
+        return sum(self.batch_sizes) / len(self.batch_sizes) if self.batch_sizes else 0
 
 
 class RateLimiter:
@@ -71,7 +59,7 @@ class RateLimiter:
         self.last_request = 0.0
         self._lock = threading.Lock()
 
-    def wait(self) -> None:
+    def wait(self):
         """Wait for the minimum interval before making the next request."""
         with self._lock:
             now = time.time()
@@ -80,18 +68,15 @@ class RateLimiter:
                 time.sleep(self.min_interval - elapsed)
             self.last_request = time.time()
 
-    def exponential_backoff(self, attempt: int) -> None:
+    def exponential_backoff(self, attempt: int):
         """Perform exponential backoff with jitter.
 
         Args:
             attempt: Current retry attempt number
         """
-        if attempt >= self.max_retries:
-            raise ProcessingError("Maximum retry attempts exceeded")
-        
-        delay = min(300, self.min_interval * (2 ** attempt))  # Cap at 5 minutes
-        jitter = random.uniform(0, 0.1 * delay)  # Add up to 10% jitter
-        time.sleep(delay + jitter)
+        if attempt > 0:
+            delay = min(300, (2**attempt) + random.uniform(0, 0.1))
+            time.sleep(delay)
 
 
 class FeedProcessor:
@@ -120,40 +105,27 @@ class FeedProcessor:
         self.queue = content_queue or ContentQueue()
         self.webhook_manager = webhook_manager or WebhookManager(webhook_url)
         self.metrics = ProcessingMetrics()
-        self.metrics_collector = MetricsCollector()
         self.running = False
         self.processing = False
         self.logger = logging.getLogger(__name__)
-        self.rate_limiter = RateLimiter(
-            min_interval=0.2,
-            max_retries=self.config.max_retries
-        )
+        self.rate_limiter = RateLimiter(min_interval=0.2, max_retries=self.config.max_retries)
 
         # Initialize Prometheus metrics
         self._init_metrics()
 
-    def _init_metrics(self) -> None:
+    def _init_metrics(self):
         """Initialize Prometheus metrics."""
-        self.metrics_collector.register(
-            "feed_processor_processed_total",
-            "counter",
-            "Total number of processed items"
+        self.items_processed = metrics.register_counter(
+            "feed_processor_items_processed_total", "Total number of items processed", ["status"]
         )
-        self.metrics_collector.register(
-            "feed_processor_errors_total",
-            "counter",
-            "Total number of processing errors"
+        self.processing_duration = metrics.register_histogram(
+            "feed_processor_processing_duration_seconds", "Time taken to process items"
         )
-        self.metrics_collector.register(
-            "feed_processor_queue_length",
-            "gauge",
-            "Current length of processing queue"
+        self.queue_size = metrics.register_gauge(
+            "feed_processor_queue_size", "Current size of the content queue"
         )
-        self.metrics_collector.register(
-            "feed_processor_process_time",
-            "histogram",
-            "Time taken to process items",
-            buckets=[0.1, 0.5, 1.0, 2.0, 5.0]
+        self.webhook_duration = metrics.register_histogram(
+            "feed_processor_webhook_duration_seconds", "Time taken for webhook delivery"
         )
 
     def fetch_feeds(self) -> List[Dict[str, Any]]:
@@ -166,37 +138,12 @@ class FeedProcessor:
             APIError: If API request fails or authentication is invalid.
         """
         try:
-            if not self.inoreader_client:
-                self.logger.error("No Inoreader client configured")
-                return []
-
-            response = self.inoreader_client.get_unread_items()
-            items = response.get("items", [])
-
-            # Filter out already processed items
-            new_items = [
-                item for item in items
-                if not self.metrics.has_processed(item.get("id", ""))
-            ]
-
-            # Update metrics
-            self.metrics_collector.increment(
-                "feed_processor_processed_total",
-                len(new_items)
-            )
-
-            # Enqueue new items for processing
-            for item in new_items:
-                self.queue.enqueue(item)
-                self.metrics.mark_processed(item.get("id", ""))
-
-            return new_items
-
-        except APIError as e:
-            self.metrics.error_count += 1
-            self.metrics_collector.increment("feed_processor_errors_total")
-            self.logger.error(f"API error occurred: {e}")
-            return []
+            items = self.inoreader_client.get_unread_items(limit=self.config.batch_size)
+            self.items_processed.labels(status="fetched").inc(len(items))
+            return items
+        except Exception as e:
+            self.items_processed.labels(status="fetch_failed").inc()
+            raise APIError(f"Failed to fetch feeds: {str(e)}")
 
     def detect_content_type(self, content: Dict[str, Any]) -> str:
         """Detect content type based on content signals.
@@ -210,15 +157,15 @@ class FeedProcessor:
         # Check for video content first as it's often most engaging
         if any(key in content for key in ["video_url", "youtube_id", "vimeo_id"]):
             return "VIDEO"
-        
+
         # Check for social media signals
         if any(key in content for key in ["social_signals", "likes", "shares"]):
             return "SOCIAL"
-        
+
         # Check for news content
         if any(key in content for key in ["news_score", "article_text"]):
             return "NEWS"
-        
+
         return "GENERAL"
 
     def calculate_priority(self, content: Dict[str, Any]) -> int:
@@ -252,12 +199,7 @@ class FeedProcessor:
 
         # Adjust based on content type
         content_type = self.detect_content_type(content)
-        type_weights = {
-            "VIDEO": 2,
-            "NEWS": 1,
-            "SOCIAL": 1,
-            "GENERAL": 0
-        }
+        type_weights = {"VIDEO": 2, "NEWS": 1, "SOCIAL": 1, "GENERAL": 0}
         priority += type_weights.get(content_type, 0)
 
         # Adjust based on freshness
@@ -288,34 +230,24 @@ class FeedProcessor:
         Raises:
             ProcessingError: If processing fails
         """
-        start_time = time.time()
-
         try:
-            # Add processing metadata
-            processed_item = item.copy()
-            processed_item.update({
-                "processed_at": datetime.now().isoformat(),
+            start_time = time.time()
+
+            processed = {
+                **item,
                 "content_type": self.detect_content_type(item),
                 "priority": self.calculate_priority(item),
-                "processor_version": "2.0.0"
-            })
+                "processed_at": datetime.now(timezone.utc).isoformat(),
+            }
 
-            # Update metrics
-            process_time = time.time() - start_time
-            self.metrics.processed_count += 1
-            self.metrics.last_process_time = process_time
-            self.metrics_collector.record(
-                "feed_processor_process_time",
-                process_time
-            )
+            duration = time.time() - start_time
+            self.processing_duration.observe(duration)
+            self.items_processed.labels(status="processed").inc()
 
-            return processed_item
-
+            return processed
         except Exception as e:
-            self.metrics.error_count += 1
-            self.metrics_collector.increment("feed_processor_errors_total")
-            self.logger.error(f"Error processing item: {e}")
-            raise ProcessingError(f"Failed to process item: {e}")
+            self.items_processed.labels(status="process_failed").inc()
+            raise ProcessingError(f"Failed to process item: {str(e)}")
 
     def process_batch(self, items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Process a batch of items.
@@ -329,10 +261,10 @@ class FeedProcessor:
         processed_items = []
         for item in items:
             try:
-                processed_item = self.process_item(item)
-                processed_items.append(processed_item)
+                processed = self.process_item(item)
+                processed_items.append(processed)
             except ProcessingError as e:
-                self.logger.error(f"Failed to process item in batch: {e}")
+                self.logger.error(f"Error processing item: {str(e)}")
                 continue
         return processed_items
 
@@ -349,18 +281,19 @@ class FeedProcessor:
             return True
 
         try:
-            response = self.webhook_manager.deliver_batch(items)
-            if not response.success:
-                self.logger.error(f"Webhook delivery failed: {response.error}")
-                self.metrics.error_count += 1
-                self.metrics_collector.increment("feed_processor_errors_total")
-                return False
-            return True
+            start_time = time.time()
+            response = self.webhook_manager.send_batch(items)
+            duration = time.time() - start_time
 
+            self.webhook_duration.observe(duration)
+            self.items_processed.labels(
+                status="delivered" if response.success else "delivery_failed"
+            ).inc(len(items))
+
+            return response.success
         except Exception as e:
-            self.logger.error(f"Error sending to webhook: {e}")
-            self.metrics.error_count += 1
-            self.metrics_collector.increment("feed_processor_errors_total")
+            self.items_processed.labels(status="delivery_failed").inc(len(items))
+            self.logger.error(f"Failed to deliver items to webhook: {str(e)}")
             return False
 
     def get_metrics(self) -> Dict[str, Any]:
@@ -370,77 +303,65 @@ class FeedProcessor:
             Dictionary of current metrics
         """
         return {
-            "processed_count": self.metrics.processed_count,
-            "error_count": self.metrics.error_count,
-            "error_rate": self.metrics.get_error_rate(),
-            "queue_length": self.queue.size(),
-            "uptime_seconds": (datetime.now() - self.metrics.start_time).total_seconds(),
-            "last_process_time": self.metrics.last_process_time,
-            "prometheus_metrics": self.metrics_collector.get_snapshot()
+            "items_processed": self.metrics.items_processed,
+            "items_failed": self.metrics.items_failed,
+            "items_queued": self.metrics.items_queued,
+            "items_delivered": self.metrics.items_delivered,
+            "processing_errors": self.metrics.processing_errors,
+            "delivery_errors": self.metrics.delivery_errors,
+            "avg_batch_size": self.metrics.get_avg_batch_size(),
+            "processing_time": self.metrics.processing_time,
+            "delivery_time": self.metrics.delivery_time,
+            "last_processed": self.metrics.last_processed,
+            "last_delivered": self.metrics.last_delivered,
         }
 
-    def start(self) -> None:
+    def start(self):
         """Start the feed processor."""
         if self.running:
-            self.logger.warning("Feed processor is already running")
             return
 
         self.running = True
-        if not self.config.test_mode:
-            threading.Thread(target=self._process_loop, daemon=True).start()
+        self.processing = True
+        threading.Thread(target=self._process_loop, daemon=True).start()
 
-    def stop(self) -> None:
+    def stop(self):
         """Stop the feed processor."""
         self.running = False
-        self.processing = False
+        while self.processing:
+            time.sleep(0.1)
 
-    def _process_loop(self) -> None:
+    def _process_loop(self):
         """Main processing loop."""
-        self.processing = True
-        retry_count = 0
-
         while self.running:
             try:
-                # Update queue length metric
-                self.metrics_collector.set_gauge(
-                    "feed_processor_queue_length",
-                    self.queue.size()
-                )
+                # Update queue size metric
+                self.queue_size.set(len(self.queue))
 
                 # Fetch new items
                 items = self.fetch_feeds()
                 if items:
-                    self.logger.info(f"Fetched {len(items)} new items")
-                    retry_count = 0  # Reset retry count on successful fetch
+                    processed_items = self.process_batch(items)
+                    if processed_items:
+                        success = self.send_batch_to_webhook(processed_items)
+                        if not success:
+                            # If delivery fails, queue items for retry
+                            for item in processed_items:
+                                self.queue.add(QueuedContent(item))
 
-                # Process items in batches
-                while not self.queue.empty() and self.running:
-                    batch = []
-                    for _ in range(self.config.batch_size):
-                        if self.queue.empty():
-                            break
-                        batch.append(self.queue.dequeue())
-
-                    if batch:
-                        processed_batch = self.process_batch(batch)
-                        if not self.send_batch_to_webhook(processed_batch):
-                            # Re-queue failed items
-                            for item in processed_batch:
-                                self.queue.enqueue(item)
-
-                if self.running:
-                    time.sleep(self.config.poll_interval)
+                # Process queued items
+                queued_items = self.queue.get_batch(self.config.batch_size)
+                if queued_items:
+                    success = self.send_batch_to_webhook([item.content for item in queued_items])
+                    if success:
+                        for item in queued_items:
+                            self.queue.remove(item)
 
             except Exception as e:
-                self.logger.error(f"Error in processing loop: {e}")
-                self.metrics.error_count += 1
-                self.metrics_collector.increment("feed_processor_errors_total")
-                
-                # Apply exponential backoff
-                try:
-                    self.rate_limiter.exponential_backoff(retry_count)
-                    retry_count += 1
-                except ProcessingError:
-                    self.logger.error("Maximum retries exceeded, stopping processor")
-                    self.stop()
-                    break
+                self.logger.error(f"Error in processing loop: {str(e)}")
+                self.items_processed.labels(status="error").inc()
+
+            # Rate limiting between iterations
+            self.rate_limiter.wait()
+
+        self.processing = False

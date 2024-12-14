@@ -7,7 +7,7 @@ import requests
 import structlog
 
 from feed_processor.core.errors import APIError
-from feed_processor.metrics.prometheus import MetricsCollector
+from feed_processor.metrics.prometheus import metrics
 
 
 class InoreaderClient:
@@ -19,51 +19,41 @@ class InoreaderClient:
         base_url: str = "https://www.inoreader.com/reader/api/0",
         rate_limit_delay: float = 0.2,
     ):
-        """Initialize the Inoreader API client.
+        """Initialize the Inoreader client.
 
         Args:
             api_token: API token for authentication
             base_url: Base URL for Inoreader API
-            rate_limit_delay: Minimum delay between requests in seconds
+            rate_limit_delay: Delay between API requests in seconds
         """
         self.api_token = api_token
-        self.base_url = base_url
+        self.base_url = base_url.rstrip("/")
         self.rate_limit_delay = rate_limit_delay
-        self.last_request_time = 0
-        self.metrics = MetricsCollector()
         self.logger = structlog.get_logger(__name__)
 
-    def _wait_for_rate_limit(self):
-        """Enforce rate limiting between requests."""
-        now = time.time()
-        time_since_last = now - self.last_request_time
-        if time_since_last < self.rate_limit_delay:
-            delay = self.rate_limit_delay - time_since_last
-            self.metrics.record("rate_limit_delay", delay)
-            time.sleep(self.rate_limit_delay)  # Always sleep for full delay
-        self.last_request_time = time.time()
+        # Initialize metrics
+        self.request_counter = metrics.register_counter(
+            "inoreader_requests_total", "Total number of Inoreader API requests", ["status"]
+        )
+        self.request_latency = metrics.register_histogram(
+            "inoreader_request_duration_seconds", "Duration of Inoreader API requests in seconds"
+        )
 
-    def _make_request(
-        self, endpoint: str, method: str = "GET", params: Optional[Dict] = None
-    ) -> Dict[str, Any]:
-        """Make a rate-limited request to the Inoreader API.
+    def _make_request(self, method: str, endpoint: str, **kwargs) -> Dict[str, Any]:
+        """Make an authenticated request to the Inoreader API.
 
         Args:
-            endpoint: API endpoint to call
-            method: HTTP method to use
-            params: Optional query parameters
+            method: HTTP method (GET, POST, etc.)
+            endpoint: API endpoint
+            **kwargs: Additional request parameters
 
         Returns:
             API response data
 
         Raises:
-            RateLimitError: If rate limit is exceeded
-            NetworkError: If network request fails
-            FeedProcessingError: For other API errors
+            APIError: If the API request fails
         """
-        self._wait_for_rate_limit()
-
-        url = f"{self.base_url}/{endpoint}"
+        url = f"{self.base_url}/{endpoint.lstrip('/')}"
         headers = {
             "Authorization": f"Bearer {self.api_token}",
             "Content-Type": "application/json",
@@ -71,58 +61,41 @@ class InoreaderClient:
 
         try:
             start_time = time.time()
-            response = requests.request(
-                method=method,
-                url=url,
-                headers=headers,
-                params=params,
-            )
-            self.metrics.record("api_latency", time.time() - start_time)
+            response = requests.request(method, url, headers=headers, **kwargs)
+            duration = time.time() - start_time
 
-            if response.status_code == 429:
-                self.metrics.increment("api_requests", labels={"status": "rate_limited"})
-                raise APIError("Inoreader API rate limit exceeded")
+            # Record metrics
+            self.request_latency.observe(duration)
+            self.request_counter.labels(status=str(response.status_code)).inc()
 
             response.raise_for_status()
-            self.metrics.increment("api_requests", labels={"status": "success"})
-
             return response.json()
 
         except requests.exceptions.RequestException as e:
-            self.metrics.increment("api_requests", labels={"status": "failed"})
-            self.logger.error(
-                "inoreader_api_request_failed",
-                error=str(e),
-                url=url,
-                status_code=getattr(e.response, "status_code", None),
-            )
-            if isinstance(e, requests.exceptions.HTTPError):
-                if e.response.status_code == 401:
-                    raise APIError("Invalid Inoreader API token")
-                elif e.response.status_code == 403:
-                    raise APIError("Insufficient permissions")
-            raise APIError(f"Failed to connect to Inoreader API: {e}")
+            self.logger.error("Inoreader API request failed", error=str(e))
+            raise APIError(f"Inoreader API request failed: {str(e)}")
 
-    def get_unread_items(
-        self, continuation: Optional[str] = None, count: int = 100
-    ) -> Dict[str, Any]:
-        """Fetch unread items from the reading list.
+        finally:
+            # Rate limiting
+            time.sleep(self.rate_limit_delay)
+
+    def get_unread_items(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """Get unread items from Inoreader.
 
         Args:
-            continuation: Token for pagination
-            count: Number of items to fetch
+            limit: Maximum number of items to return
 
         Returns:
-            Dict containing feed items and continuation token
+            List of unread items
         """
-        params = {"n": count}
-        if continuation:
-            params["c"] = continuation
+        endpoint = "stream/contents/user/-/state/com.google/reading-list"
+        params = {
+            "n": limit,
+            "xt": "user/-/state/com.google/read",  # Exclude read items
+        }
 
-        return self._make_request(
-            "stream/contents/user/-/state/com.google/reading-list",
-            params=params,
-        )
+        response = self._make_request("GET", endpoint, params=params)
+        return response.get("items", [])
 
     def mark_as_read(self, item_ids: List[str]) -> None:
         """Mark items as read.

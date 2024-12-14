@@ -1,9 +1,10 @@
 """Inoreader API client implementation."""
 
 import time
+from typing import Any, Dict, List, Optional
+
 import requests
 import structlog
-from typing import Any, Dict, List, Optional
 
 from feed_processor.core.errors import APIError, NetworkError, RateLimitError
 from feed_processor.metrics.prometheus import MetricsCollector

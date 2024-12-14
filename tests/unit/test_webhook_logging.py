@@ -1,5 +1,6 @@
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 from feed_processor.webhook.manager import WebhookManager
 
@@ -39,11 +40,15 @@ class TestWebhookManagerLogging:
     def test_rate_limit_logging(self, webhook_manager, valid_payload):
         with patch("time.time", side_effect=[0, 0, 0.2]):  # Initial, elapsed check, final
             webhook_manager._wait_for_rate_limit()
-            webhook_manager.logger.debug.assert_called_with("rate_limit_delay", sleep_time=0.2, elapsed=0)
+            webhook_manager.logger.debug.assert_called_with(
+                "rate_limit_delay", sleep_time=0.2, elapsed=0
+            )
 
     def test_validation_success_logging(self, webhook_manager, valid_payload):
         webhook_manager._validate_payload(valid_payload)
-        webhook_manager.logger.debug.assert_called_with("payload_validation_success", payload=valid_payload)
+        webhook_manager.logger.debug.assert_called_with(
+            "payload_validation_success", payload=valid_payload
+        )
 
     def test_validation_failure_logging(self, webhook_manager):
         invalid_payload = {"title": "Test"}  # Missing required fields
@@ -68,7 +73,9 @@ class TestWebhookManagerLogging:
             webhook_manager.send_webhook(valid_payload)
 
             # Check all debug logs in sequence
-            assert webhook_manager.logger.debug.call_args_list[0][0][0] == "payload_validation_success"
+            assert (
+                webhook_manager.logger.debug.call_args_list[0][0][0] == "payload_validation_success"
+            )
             assert webhook_manager.logger.debug.call_args_list[1][0][0] == "sending_webhook_request"
             assert webhook_manager.logger.info.call_args_list[-1][0][0] == "webhook_request_success"
 

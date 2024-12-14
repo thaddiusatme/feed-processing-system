@@ -1,3 +1,5 @@
+"""Base queue implementation for feed processing."""
+
 import threading
 from collections import deque
 from dataclasses import dataclass
@@ -5,7 +7,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Deque, Dict, List, Optional
 
-from feed_processor.metrics.prometheus import MetricsCollector
+from feed_processor.metrics.prometheus import metrics
 
 
 class Priority(Enum):
@@ -36,230 +38,182 @@ class QueueItem:
     id: str
     priority: Priority
     content: Dict[str, Any]
-    timestamp: datetime
+    timestamp: datetime = datetime.now(timezone.utc)
 
 
-class PriorityQueue:
+class BaseQueue:
     """Thread-safe priority queue implementation using multiple deques.
 
     This queue maintains separate deques for each priority level (HIGH, NORMAL, LOW)
     and provides thread-safe operations for adding and removing items. When the queue
     is full, high-priority items can displace lower priority items.
-
-    The implementation uses Python's collections.deque for O(1) operations and
-    threading.Lock for thread safety.
-
-    Attributes:
-        _max_size (int): Maximum total items across all priority levels
-        _queues (Dict[Priority, deque]): Separate queue for each priority
-        _lock (threading.Lock): Lock for thread-safe operations
-        _size (int): Current total number of items
-        metrics (MetricsCollector): Metrics collector for queue metrics
     """
 
-    def __init__(self, max_size: int = 1000) -> None:
-        """Initialize the priority queue.
+    def __init__(self, max_size: int = 1000):
+        """Initialize the queue.
 
         Args:
-            max_size: Maximum number of items the queue can hold
-
-        Raises:
-            ValueError: If max_size is less than 1
+            max_size: Maximum number of items across all priority levels
         """
-        if max_size < 1:
-            raise ValueError("Queue size must be at least 1")
-
-        self._max_size = max_size
-        self._queues: Dict[Priority, Deque[QueueItem]] = {
-            Priority.HIGH: deque(maxlen=max_size),
-            Priority.NORMAL: deque(maxlen=max_size),
-            Priority.LOW: deque(maxlen=max_size),
+        self.max_size = max_size
+        self.queues = {
+            Priority.HIGH: deque(),
+            Priority.NORMAL: deque(),
+            Priority.LOW: deque(),
         }
-        self._lock = threading.Lock()
-        self.metrics = MetricsCollector()
-        self._initialize_metrics()
+        self.lock = threading.Lock()
 
-    def _initialize_metrics(self):
-        """Initialize queue metrics."""
-        # Queue size metrics
-        self.metrics.set_gauge("queue_size_total", 0)
-        self.metrics.set_gauge("queue_size", 0, labels={"priority": "high"})
-        self.metrics.set_gauge("queue_size", 0, labels={"priority": "normal"})
-        self.metrics.set_gauge("queue_size", 0, labels={"priority": "low"})
+        # Initialize metrics
+        self.queue_size = metrics.register_gauge(
+            "queue_size_total", "Total number of items in queue", ["priority"]
+        )
+        self.queue_operations = metrics.register_counter(
+            "queue_operations_total", "Total number of queue operations", ["operation"]
+        )
+        self.queue_latency = metrics.register_histogram(
+            "queue_operation_duration_seconds", "Duration of queue operations"
+        )
 
-        # Operation metrics
-        self.metrics.increment("enqueued_items", 0, labels={"priority": "high"})
-        self.metrics.increment("enqueued_items", 0, labels={"priority": "normal"})
-        self.metrics.increment("enqueued_items", 0, labels={"priority": "low"})
-        self.metrics.increment("dequeued_items", 0)
-
-        # Overflow metrics
-        self.metrics.increment("queue_overflows", 0, labels={"priority": "high"})
-        self.metrics.increment("queue_overflows", 0, labels={"priority": "normal"})
-        self.metrics.increment("queue_overflows", 0, labels={"priority": "low"})
-
-    def enqueue(self, item: QueueItem, priority: Priority = Priority.NORMAL) -> bool:
-        """Add an item to the appropriate priority queue.
-
-        When queue is full:
-        - HIGH priority items can displace LOW or NORMAL items
-        - Other priority items are rejected
-
-        Args:
-            item: Queue item with priority level
-
-        Returns:
-            True if item was added, False if rejected
-
-        Thread Safety:
-            This method is thread-safe.
-
-        Note:
-            When displacing items, oldest LOW priority items are removed first,
-            followed by oldest NORMAL priority items if necessary.
-        """
-        with self._lock:
-            if self._size >= self._max_size:
-                if item.priority == Priority.HIGH:
-                    # Try to remove a low priority item
-                    if len(self._queues[Priority.LOW]) > 0:
-                        self._queues[Priority.LOW].popleft()
-                        self._size -= 1
-                    elif len(self._queues[Priority.NORMAL]) > 0:
-                        self._queues[Priority.NORMAL].popleft()
-                        self._size -= 1
-                    else:
-                        self.metrics.increment(
-                            "queue_overflows", labels={"priority": item.priority.name.lower()}
-                        )
-                        return False
-                else:
-                    self.metrics.increment(
-                        "queue_overflows", labels={"priority": item.priority.name.lower()}
-                    )
-                    return False
-
-            self._queues[item.priority].append(item)
-            self.metrics.increment(
-                "enqueued_items", labels={"priority": item.priority.name.lower()}
-            )
-            self._size += 1
-            self._update_size_metrics()
-            return True
-
-    def dequeue(self) -> Optional[QueueItem]:
-        """Remove and return highest priority item available.
-
-        Returns items in priority order (HIGH -> NORMAL -> LOW).
-        Within each priority level, oldest items are returned first.
-
-        Returns:
-            Next item by priority, or None if queue is empty
-
-        Thread Safety:
-            This method is thread-safe.
-        """
-        with self._lock:
-            if self._size == 0:
-                return None
-
-            for priority in [Priority.HIGH, Priority.NORMAL, Priority.LOW]:
-                if len(self._queues[priority]) > 0:
-                    self._size -= 1
-                    item = self._queues[priority].popleft()
-                    self.metrics.increment("dequeued_items")
-                    self._update_size_metrics()
-                    return item
-            return None
-
-    def _update_size_metrics(self):
-        """Update all queue size metrics."""
-        total_size = sum(len(q) for q in self._queues.values())
-        self.metrics.set_gauge("queue_size_total", total_size)
-
-        for priority, queue in self._queues.items():
-            self.metrics.set_gauge(
-                "queue_size", len(queue), labels={"priority": priority.name.lower()}
-            )
-
-    @property
     def size(self) -> int:
-        """Get current total number of items in queue.
+        """Get total number of items in queue.
 
         Returns:
-            Total items across all priority levels
-
-        Thread Safety:
-            This property is thread-safe.
+            Total number of items across all priority levels
         """
-        with self._lock:
-            return self._size
-
-    @property
-    def max_size(self) -> int:
-        """Get maximum queue capacity.
-
-        Returns:
-            Maximum number of items allowed
-        """
-        return self._max_size
-
-    def is_empty(self) -> bool:
-        """Check if queue is empty.
-
-        Returns:
-            True if no items in queue, False otherwise
-
-        Thread Safety:
-            This method is thread-safe.
-        """
-        with self._lock:
-            return self._size == 0
+        with self.lock:
+            total = sum(len(q) for q in self.queues.values())
+            for priority in Priority:
+                self.queue_size.labels(priority=priority.name.lower()).set(
+                    len(self.queues[priority])
+                )
+            return total
 
     def is_full(self) -> bool:
-        """Check if queue is at maximum capacity.
+        """Check if queue is at max capacity.
 
         Returns:
-            True if queue is full, False otherwise
-
-        Thread Safety:
-            This method is thread-safe.
+            True if total items >= max_size
         """
-        with self._lock:
-            return self._size >= self._max_size
+        return self.size() >= self.max_size
+
+    def add(self, item: QueueItem) -> bool:
+        """Add an item to the queue.
+
+        Args:
+            item: QueueItem to add
+
+        Returns:
+            True if item was added successfully
+        """
+        start_time = datetime.now(timezone.utc)
+        try:
+            with self.lock:
+                # If queue is full, try to make room by removing lowest priority items
+                if self.is_full():
+                    if not self._make_room(item.priority):
+                        self.queue_operations.labels(operation="add_failed").inc()
+                        return False
+
+                self.queues[item.priority].append(item)
+                self.queue_operations.labels(operation="add_success").inc()
+                return True
+
+        finally:
+            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
+            self.queue_latency.observe(duration)
+
+    def get(self, count: int = 1) -> List[QueueItem]:
+        """Get items from queue in priority order.
+
+        Args:
+            count: Maximum number of items to get
+
+        Returns:
+            List of QueueItems in priority order
+        """
+        start_time = datetime.now(timezone.utc)
+        try:
+            with self.lock:
+                items = []
+                remaining = count
+
+                # Get items in priority order
+                for priority in reversed(list(Priority)):
+                    while remaining > 0 and self.queues[priority]:
+                        items.append(self.queues[priority].popleft())
+                        remaining -= 1
+
+                self.queue_operations.labels(operation="get").inc(len(items))
+                return items
+
+        finally:
+            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
+            self.queue_latency.observe(duration)
 
     def peek(self) -> Optional[QueueItem]:
-        """View next item without removing it.
-
-        Similar to dequeue() but doesn't modify the queue.
-        Returns highest priority item available.
+        """Peek at highest priority item without removing it.
 
         Returns:
-            Next item by priority, or None if queue is empty
-
-        Thread Safety:
-            This method is thread-safe.
+            Highest priority QueueItem or None if queue is empty
         """
-        with self._lock:
-            if self._size == 0:
-                return None
-
-            for priority in [Priority.HIGH, Priority.NORMAL, Priority.LOW]:
-                if len(self._queues[priority]) > 0:
-                    return self._queues[priority][0]
-
+        with self.lock:
+            for priority in reversed(list(Priority)):
+                if self.queues[priority]:
+                    return self.queues[priority][0]
             return None
 
-    def clear(self) -> None:
-        """Remove all items from all priority queues.
+    def remove(self, item_id: str) -> bool:
+        """Remove a specific item from the queue.
 
-        Resets the queue to empty state.
+        Args:
+            item_id: ID of item to remove
 
-        Thread Safety:
-            This method is thread-safe.
+        Returns:
+            True if item was found and removed
         """
-        with self._lock:
-            for priority in Priority:
-                self._queues[priority].clear()
-            self._size = 0
-            self._update_size_metrics()
+        start_time = datetime.now(timezone.utc)
+        try:
+            with self.lock:
+                for priority in Priority:
+                    queue = self.queues[priority]
+                    for i, item in enumerate(queue):
+                        if item.id == item_id:
+                            del queue[i]
+                            self.queue_operations.labels(operation="remove").inc()
+                            return True
+                return False
+
+        finally:
+            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
+            self.queue_latency.observe(duration)
+
+    def clear(self) -> None:
+        """Clear all items from the queue."""
+        with self.lock:
+            for queue in self.queues.values():
+                queue.clear()
+            self.queue_operations.labels(operation="clear").inc()
+
+    def _make_room(self, new_priority: Priority) -> bool:
+        """Try to make room for a new item by removing lower priority items.
+
+        Args:
+            new_priority: Priority of item we want to add
+
+        Returns:
+            True if room was made or already available
+        """
+        if not self.is_full():
+            return True
+
+        # Only remove items of lower priority
+        for priority in Priority:
+            if priority.value >= new_priority.value:
+                continue
+
+            if self.queues[priority]:
+                self.queues[priority].pop()
+                self.queue_operations.labels(operation="evict").inc()
+                return True
+
+        return False

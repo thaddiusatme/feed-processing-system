@@ -1,7 +1,9 @@
 """Example of custom priority rules implementation."""
-from typing import Dict, Any, List, Set
 from datetime import datetime, timezone
+from typing import Any, Dict, List, Set
+
 from feed_processor import FeedProcessor, Priority
+
 
 class CustomFeedProcessor(FeedProcessor):
     def __init__(self, *args, **kwargs):
@@ -9,9 +11,7 @@ class CustomFeedProcessor(FeedProcessor):
         self.breaking_keywords: Set[str] = set(
             self.config.get("BREAKING_NEWS_KEYWORDS", "").split(",")
         )
-        self.trusted_sources: Set[str] = set(
-            self.config.get("TRUSTED_SOURCES", "").split(",")
-        )
+        self.trusted_sources: Set[str] = set(self.config.get("TRUSTED_SOURCES", "").split(","))
         self.high_priority_categories: Set[str] = set(
             self.config.get("HIGH_PRIORITY_CATEGORIES", "").split(",")
         )

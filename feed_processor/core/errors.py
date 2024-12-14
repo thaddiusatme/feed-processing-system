@@ -400,11 +400,13 @@ class BaseError(Exception):
 
 class APIError(BaseError):
     """Use this error when API operations fail."""
+
     pass
 
 
 class ProcessingError(BaseError):
     """Use this error when content processing fails."""
+
     pass
 
 

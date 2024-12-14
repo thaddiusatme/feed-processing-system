@@ -1,7 +1,9 @@
 """Prometheus metrics collection module."""
 
 from enum import Enum
-from typing import List
+from typing import Any, Dict, List
+
+from prometheus_client import Counter, Gauge, Histogram
 
 
 class MetricType(Enum):
@@ -12,90 +14,70 @@ class MetricType(Enum):
     HISTOGRAM = "histogram"
 
 
-class MetricsCollector:
-    """Collect metrics for the feed processor."""
+class MetricsRegistry:
+    """Registry for Prometheus metrics."""
 
     def __init__(self):
-        """Initialize metrics."""
-        self.webhook_requests_total = Counter("webhook_requests_total", MetricType.COUNTER)
-        self.webhook_failures_total = Counter("webhook_failures_total", MetricType.COUNTER)
-        self.webhook_request_duration_seconds = Histogram(
-            "webhook_request_duration_seconds", MetricType.HISTOGRAM
-        )
-        self.webhook_batch_size = Gauge("webhook_batch_size", MetricType.GAUGE)
+        """Initialize metrics registry."""
+        self._metrics = {}
 
-    def inc(self, metric_name: str) -> None:
-        """Increment a counter."""
-        if hasattr(self, metric_name):
-            counter = getattr(self, metric_name)
-            counter.inc()
+    def register_counter(self, name: str, description: str, labels: List[str] = None) -> Counter:
+        """Register a new counter metric."""
+        if name in self._metrics:
+            return self._metrics[name]
 
-    def set_gauge(self, metric_name: str, value: float) -> None:
-        """Set a gauge value."""
-        if hasattr(self, metric_name):
-            gauge = getattr(self, metric_name)
-            gauge.set(value)
+        counter = Counter(name, description, labels or [])
+        self._metrics[name] = counter
+        return counter
 
-    def record(self, metric_name: str, value: float) -> None:
-        """Record a histogram value."""
-        if hasattr(self, metric_name):
-            histogram = getattr(self, metric_name)
-            histogram.observe(value)
+    def register_gauge(self, name: str, description: str, labels: List[str] = None) -> Gauge:
+        """Register a new gauge metric."""
+        if name in self._metrics:
+            return self._metrics[name]
 
+        gauge = Gauge(name, description, labels or [])
+        self._metrics[name] = gauge
+        return gauge
 
-class Counter:
-    """Simple counter metric."""
+    def register_histogram(
+        self, name: str, description: str, labels: List[str] = None
+    ) -> Histogram:
+        """Register a new histogram metric."""
+        if name in self._metrics:
+            return self._metrics[name]
 
-    def __init__(self, name: str, type: MetricType):
-        """Initialize counter with name and type."""
-        self.name = name
-        self.type = type
-        self.value = 0
+        histogram = Histogram(name, description, labels or [])
+        self._metrics[name] = histogram
+        return histogram
 
-    def inc(self, value: float = 1) -> None:
-        """Increment counter."""
-        self.value += value
+    def get_metric(self, name: str) -> Any:
+        """Get a registered metric by name."""
+        return self._metrics.get(name)
 
 
-class Gauge:
-    """Simple gauge metric."""
+# Global metrics registry
+metrics = MetricsRegistry()
 
-    def __init__(self, name: str, type: MetricType):
-        """Initialize gauge with name and type."""
-        self.name = name
-        self.type = type
-        self.value = 0
-
-    def set(self, value: float) -> None:
-        """Set gauge value."""
-        self.value = value
+# Cache metrics
+metrics.register_counter("cache_hits", "Number of cache hits")
+metrics.register_counter("cache_misses", "Number of cache misses")
+metrics.register_counter("cache_evictions", "Number of cache evictions")
+metrics.register_gauge("cache_compression_ratio", "Compression ratio of cached items")
+metrics.register_gauge("cache_size_bytes", "Total size of cached items in bytes")
 
 
-class Histogram:
-    """Simple histogram metric."""
-
-    def __init__(self, name: str, type: MetricType):
-        """Initialize histogram with name and type."""
-        self.name = name
-        self.type = type
-        self.values: List[float] = []
-
-    def observe(self, value: float) -> None:
-        """Record an observation."""
-        self.values.append(value)
-
-
-def start_metrics_server(port: int = 8000) -> None:
+def start_metrics_server(port: int = 8000):
     """Start a Prometheus metrics server on the specified port.
 
     Args:
         port: Port number for metrics server
     """
-    # TODO: Implement Prometheus metrics server
-    pass
+    from prometheus_client import start_http_server
+
+    start_http_server(port)
 
 
-def init_metrics(port: int = 8000) -> None:
+def init_metrics(port: int = 8000):
     """Initialize and start the metrics server on the specified port.
 
     Args:

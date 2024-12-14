@@ -4,15 +4,26 @@ import threading
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 import requests
 import structlog
 
 from feed_processor.error_handling import ErrorHandler
-from feed_processor.metrics.prometheus import MetricsCollector
+from feed_processor.metrics.prometheus import metrics
 
 logger = structlog.get_logger(__name__)
+
+
+@dataclass
+class WebhookError(Exception):
+    """Error class for webhook-related exceptions."""
+
+    message: str
+    status_code: Optional[int] = None
+    error_id: Optional[str] = None
+    error_type: Optional[str] = None
+    timestamp: str = datetime.now(timezone.utc).isoformat()
 
 
 @dataclass
@@ -36,186 +47,138 @@ class WebhookManager:
     def __init__(
         self,
         webhook_url: str,
-        error_handler: ErrorHandler,
-        metrics: MetricsCollector,
-        rate_limit: float = 0.2,
+        error_handler: Optional[ErrorHandler] = None,
         max_retries: int = 3,
-        timeout: float = 10.0,
-    ) -> None:
-        """Initialize webhook manager with error handler and metrics collector."""
+        retry_delay: float = 5.0,
+        batch_size: int = 50,
+    ):
+        """Initialize the webhook manager.
+
+        Args:
+            webhook_url: URL to send webhooks to
+            error_handler: Optional error handler for processing errors
+            max_retries: Maximum number of retry attempts
+            retry_delay: Base delay between retries in seconds
+            batch_size: Maximum items per webhook batch
+        """
         self.webhook_url = webhook_url
         self.error_handler = error_handler
-        self.metrics = metrics
-        self.rate_limit = rate_limit
         self.max_retries = max_retries
-        self.timeout = timeout
-        self.last_request_time = 0
-        self._lock = threading.Lock()
-        self.retry_count = {}  # Track retries per webhook URL
+        self.retry_delay = retry_delay
+        self.batch_size = batch_size
+        self.lock = threading.Lock()
 
-        # Setup structured logging
-        self.logger = structlog.get_logger(__name__).bind(
-            component="WebhookManager",
-            webhook_url=webhook_url,
-            rate_limit=rate_limit,
-            max_retries=max_retries,
+        # Initialize metrics
+        self.webhook_counter = metrics.register_counter(
+            "webhook_requests_total", "Total number of webhook requests", ["status"]
         )
-        self.logger.info("webhook_manager_initialized")
+        self.webhook_latency = metrics.register_histogram(
+            "webhook_request_duration_seconds", "Duration of webhook requests"
+        )
+        self.retry_counter = metrics.register_counter(
+            "webhook_retry_attempts_total", "Total number of webhook retry attempts"
+        )
+        self.batch_size_gauge = metrics.register_gauge(
+            "webhook_batch_size_current", "Current webhook batch size"
+        )
 
-    def _initialize_metrics(self):
-        """Initialize webhook delivery metrics."""
-        # Initialize counters with zero values
-        self.metrics.webhook_requests_total.inc(0)
-        self.metrics.webhook_failures_total.inc(0)
-        self.metrics.webhook_request_duration_seconds.observe(0)
-        self.metrics.webhook_batch_size.set(0)
-
-    def _validate_payload(self, payload: Dict) -> bool:
-        """Validate webhook payload has required fields.
-
-        Args:
-            payload: Dictionary containing webhook data
-
-        Returns:
-            bool: True if payload is valid, False otherwise
-        """
-        required_fields = ["title", "brief", "contentType"]
-        return all(field in payload for field in required_fields)
-
-    def validate_payload(self, payload: Dict) -> bool:
-        """
-        Validate webhook payload for required fields.
+    def send_batch(self, items: List[Dict]) -> WebhookResponse:
+        """Send a batch of items via webhook.
 
         Args:
-            payload: Dictionary containing webhook payload
+            items: List of items to send
 
         Returns:
-            bool: True if payload is valid
-
-        Raises:
-            ValueError: If required fields are missing
+            WebhookResponse with delivery status
         """
-        required_fields = ["event_type", "data", "timestamp"]
-        missing_fields = [field for field in required_fields if field not in payload]
+        if not items:
+            return WebhookResponse(success=True, status_code=200)
 
-        if missing_fields:
-            error_msg = f"Missing required fields: {', '.join(missing_fields)}"
-            self.logger.error("webhook_payload_validation_failed", missing_fields=missing_fields)
-            raise ValueError(error_msg)
+        self.batch_size_gauge.set(len(items))
+        start_time = time.time()
 
-        return True
-
-    def send_webhook(self, payload: Dict) -> bool:
-        """Send webhook with retry logic.
-
-        Args:
-            payload: Dictionary containing webhook data
-
-        Returns:
-            bool: True if webhook was sent successfully, False otherwise
-        """
         try:
-            self._validate_payload(payload)
-            self.validate_payload(payload)
-
-            retry_count = 0
-
-            def retry_func():
-                nonlocal retry_count
-                retry_count += 1
-                try:
-                    return self._send_single_request(payload, attempt=retry_count)
-                except Exception as e:
-                    if retry_count >= self.max_retries:
-                        raise
-                    raise Exception("Retry failed") from e
-
-            try:
-                return retry_func()  # Initial attempt
-            except Exception as e:
-                self.error_handler.handle_error(
-                    error=e,
-                    category="DELIVERY_ERROR",
-                    severity="MEDIUM",
-                    service="webhook",
-                    details={"url": self.webhook_url, "payload": payload},
-                    retry_func=retry_func,
-                    max_retries=self.max_retries,
-                )
-        except Exception as e:
-            self.logger.error("Failed to send webhook", error=str(e))
-            raise
-
-    def _send_single_request(self, payload: Dict, attempt: int = 0) -> bool:
-        """Send a single webhook request.
-
-        Args:
-            payload: Dictionary containing webhook data
-            attempt: Current retry attempt number
-
-        Returns:
-            bool: True if request was successful, False otherwise
-        """
-        try:
-            # Rate limit before sending
-            if attempt > 0:
-                backoff = (2 ** (attempt - 1)) * self.rate_limit
-                time.sleep(backoff)
-
-            # Add timestamp if not present
-            if "timestamp" not in payload:
-                payload["timestamp"] = datetime.now(tz=timezone.utc).isoformat()
-
-            # Send request
             response = requests.post(
                 self.webhook_url,
-                json=payload,
+                json={"items": items},
                 headers={"Content-Type": "application/json"},
-                timeout=self.timeout,
+                timeout=30,
             )
 
-            # Update metrics
-            self.metrics.webhook_requests_total.inc()
-            self.metrics.webhook_request_duration_seconds.observe(response.elapsed.total_seconds())
+            duration = time.time() - start_time
+            self.webhook_latency.observe(duration)
 
-            # Check response
+            if response.status_code == 429:  # Rate limited
+                self.webhook_counter.labels(status="rate_limited").inc()
+                return WebhookResponse(
+                    success=False,
+                    status_code=429,
+                    error_type="rate_limited",
+                    response_time=duration,
+                )
+
             response.raise_for_status()
+            self.webhook_counter.labels(status="success").inc()
 
-            return True
-
-        except Exception as e:
-            self.metrics.webhook_failures_total.inc()
-            self.logger.error(
-                "webhook_request_failed",
-                error=str(e),
-                attempt=attempt,
-                error_type=type(e).__name__,
-                error_id=str(id(e)),
+            return WebhookResponse(
+                success=True,
+                status_code=response.status_code,
+                response_time=duration,
             )
-            raise
 
-    def bulk_send(self, payloads: list) -> list:
-        """Send multiple webhooks with rate limiting."""
-        self.logger.info("starting_bulk_send", payload_count=len(payloads))
+        except requests.exceptions.RequestException as e:
+            duration = time.time() - start_time
+            self.webhook_counter.labels(status="failed").inc()
+
+            error_id = f"webhook_error_{int(time.time())}"
+            if self.error_handler:
+                self.error_handler.handle_error(e, error_id=error_id)
+
+            return WebhookResponse(
+                success=False,
+                status_code=getattr(e.response, "status_code", 500),
+                error_id=error_id,
+                error_type="request_failed",
+                response_time=duration,
+            )
+
+    def send_with_retry(self, items: List[Dict], retry_count: int = 0) -> WebhookResponse:
+        """Send items with retry logic.
+
+        Args:
+            items: List of items to send
+            retry_count: Current retry attempt number
+
+        Returns:
+            WebhookResponse with final delivery status
+        """
+        response = self.send_batch(items)
+
+        if not response.success and retry_count < self.max_retries:
+            self.retry_counter.inc()
+            time.sleep(self.retry_delay * (2**retry_count))
+            return self.send_with_retry(items, retry_count + 1)
+
+        return response
+
+    def send_items(self, items: List[Dict]) -> List[WebhookResponse]:
+        """Send items in batches with retries.
+
+        Args:
+            items: List of items to send
+
+        Returns:
+            List of WebhookResponses for each batch
+        """
+        if not items:
+            return []
 
         responses = []
-        success_count = 0
-        error_count = 0
-
-        for payload in payloads:
-            response = self.send_webhook(payload)
+        for i in range(0, len(items), self.batch_size):
+            batch = items[i : i + self.batch_size]
+            response = self.send_with_retry(batch)
             responses.append(response)
-
-            if response:
-                success_count += 1
-            else:
-                error_count += 1
-
-        self.logger.info(
-            "bulk_send_completed",
-            total_items=len(payloads),
-            success_count=success_count,
-            error_count=error_count,
-        )
+            if not response.success:
+                break
 
         return responses

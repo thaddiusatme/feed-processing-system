@@ -9,6 +9,9 @@ cachetools==5.3.2
 spacy==3.7.2
 textstat==0.7.3
 rake-nltk==1.0.6
+wikipedia-api==0.6.0
+transformers==4.36.0
+torch==2.2.2
 
 # Data Storage
 pyairtable==2.2.1
@@ -39,3 +42,8 @@ locust==2.32.4
 
 # Container Support
 docker==7.0.0
+
+# Google Drive Integration
+google-api-python-client==2.108.0
+google-auth==2.23.4
+google-auth-oauthlib==1.1.0

@@ -1,7 +1,7 @@
 """Configuration settings for webhook functionality."""
 
 from dataclasses import dataclass
-from typing import Dict, Any
+from typing import Any, Dict
 
 
 @dataclass
@@ -34,7 +34,4 @@ class WebhookConfig:
         Returns:
             WebhookConfig instance with values from dictionary
         """
-        return cls(**{
-            k: v for k, v in config_dict.items()
-            if k in cls.__dataclass_fields__
-        })
+        return cls(**{k: v for k, v in config_dict.items() if k in cls.__dataclass_fields__})

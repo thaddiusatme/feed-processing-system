@@ -12,7 +12,7 @@ from typing import Optional
 from urllib.parse import urlparse
 
 import click
-from prometheus_client import CollectorRegistry, generate_latest
+from prometheus_client import start_http_server
 
 from .metrics import (
     PROCESSING_LATENCY,
