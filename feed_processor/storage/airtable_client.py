@@ -6,6 +6,22 @@ import requests
 logger = logging.getLogger(__name__)
 
 
+class AirtableConfig:
+    """Configuration for Airtable client."""
+
+    def __init__(self, api_key: str, base_id: str, table_name: str):
+        """Initialize Airtable configuration.
+
+        Args:
+            api_key: Airtable API key
+            base_id: Airtable base ID
+            table_name: Name of the table to interact with
+        """
+        self.api_key = api_key
+        self.base_id = base_id
+        self.table_name = table_name
+
+
 class AirtableClient:
     """Client for interacting with Airtable API."""
 

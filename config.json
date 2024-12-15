@@ -3,5 +3,8 @@
     "webhook_endpoint": "http://localhost:9000/webhook",
     "webhook_auth_token": "test-token",
     "webhook_batch_size": 10,
-    "metrics_port": 49152
+    "metrics_port": 49152,
+    "airtable_api_key": "test-key",
+    "airtable_base_id": "test-base",
+    "airtable_table_name": "test-table"
 }

@@ -36,6 +36,7 @@ class WebhookResponse:
     error_type: Optional[str] = None
     timestamp: str = datetime.now(timezone.utc).isoformat()
     response_time: Optional[float] = None
+    retry_count: Optional[int] = None
 
 
 class WebhookManager:
@@ -49,8 +50,11 @@ class WebhookManager:
         webhook_url: str,
         error_handler: Optional[ErrorHandler] = None,
         max_retries: int = 3,
-        retry_delay: float = 5.0,
+        initial_retry_delay: float = 1.0,
+        max_retry_delay: float = 8.0,
+        retry_backoff_factor: float = 2.0,
         batch_size: int = 50,
+        rate_limit: Optional[float] = None,
     ):
         """Initialize the webhook manager.
 
@@ -58,14 +62,21 @@ class WebhookManager:
             webhook_url: URL to send webhooks to
             error_handler: Optional error handler for processing errors
             max_retries: Maximum number of retry attempts
-            retry_delay: Base delay between retries in seconds
+            initial_retry_delay: Initial delay between retries in seconds
+            max_retry_delay: Maximum delay between retries in seconds
+            retry_backoff_factor: Factor to multiply delay by for each retry
             batch_size: Maximum items per webhook batch
+            rate_limit: Minimum time between requests in seconds
         """
         self.webhook_url = webhook_url
         self.error_handler = error_handler
         self.max_retries = max_retries
-        self.retry_delay = retry_delay
+        self.initial_retry_delay = initial_retry_delay
+        self.max_retry_delay = max_retry_delay
+        self.retry_backoff_factor = retry_backoff_factor
         self.batch_size = batch_size
+        self.rate_limit = rate_limit
+        self.last_request_time = 0
         self.lock = threading.Lock()
 
         # Initialize metrics
@@ -82,19 +93,30 @@ class WebhookManager:
             "webhook_batch_size_current", "Current webhook batch size"
         )
 
-    def send_batch(self, items: List[Dict]) -> WebhookResponse:
+    def send_batch(self, items: List[Dict], retry_count: int = 0) -> WebhookResponse:
         """Send a batch of items via webhook.
 
         Args:
             items: List of items to send
+            retry_count: Current retry attempt number
 
         Returns:
             WebhookResponse with delivery status
         """
         if not items:
-            return WebhookResponse(success=True, status_code=200)
+            return WebhookResponse(success=True, status_code=200, retry_count=0)
 
         self.batch_size_gauge.set(len(items))
+
+        # Apply rate limiting if configured
+        if self.rate_limit:
+            with self.lock:
+                current_time = time.time()
+                time_since_last = current_time - self.last_request_time
+                if time_since_last < self.rate_limit:
+                    time.sleep(self.rate_limit - time_since_last)
+                self.last_request_time = time.time()
+
         start_time = time.time()
 
         try:
@@ -115,15 +137,25 @@ class WebhookManager:
                     status_code=429,
                     error_type="rate_limited",
                     response_time=duration,
+                    retry_count=retry_count,
                 )
 
-            response.raise_for_status()
-            self.webhook_counter.labels(status="success").inc()
+            if response.status_code >= 400:
+                self.webhook_counter.labels(status="failed").inc()
+                return WebhookResponse(
+                    success=False,
+                    status_code=response.status_code,
+                    error_type="http_error",
+                    response_time=duration,
+                    retry_count=retry_count,
+                )
 
+            self.webhook_counter.labels(status="success").inc()
             return WebhookResponse(
                 success=True,
                 status_code=response.status_code,
                 response_time=duration,
+                retry_count=retry_count,
             )
 
         except requests.exceptions.RequestException as e:
@@ -140,6 +172,7 @@ class WebhookManager:
                 error_id=error_id,
                 error_type="request_failed",
                 response_time=duration,
+                retry_count=retry_count,
             )
 
     def send_with_retry(self, items: List[Dict], retry_count: int = 0) -> WebhookResponse:
@@ -152,11 +185,26 @@ class WebhookManager:
         Returns:
             WebhookResponse with final delivery status
         """
-        response = self.send_batch(items)
+        response = self.send_batch(items, retry_count)
 
         if not response.success and retry_count < self.max_retries:
             self.retry_counter.inc()
-            time.sleep(self.retry_delay * (2**retry_count))
+
+            # Calculate delay with exponential backoff
+            delay = min(
+                self.initial_retry_delay * (self.retry_backoff_factor**retry_count),
+                self.max_retry_delay,
+            )
+
+            logger.info(
+                "Webhook delivery failed, retrying",
+                retry_count=retry_count + 1,
+                max_retries=self.max_retries,
+                delay=delay,
+                error_type=response.error_type,
+            )
+
+            time.sleep(delay)
             return self.send_with_retry(items, retry_count + 1)
 
         return response
@@ -182,3 +230,15 @@ class WebhookManager:
                 break
 
         return responses
+
+    def send_webhook(self, item: Dict) -> WebhookResponse:
+        """Send a single item via webhook with retries.
+
+        Args:
+            item: Item to send
+
+        Returns:
+            WebhookResponse with delivery status
+        """
+        response = self.send_with_retry([item])
+        return response

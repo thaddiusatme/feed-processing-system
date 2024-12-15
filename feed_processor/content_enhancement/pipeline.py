@@ -11,6 +11,8 @@ from typing import Dict, List, Optional
 
 from fuzzywuzzy import fuzz, process
 
+from feed_processor.content_analysis.advanced_summarization import AdvancedSummarizer
+from feed_processor.content_analysis.summarization import ContentSummarizer
 from feed_processor.storage.models import ContentItem
 
 logger = logging.getLogger(__name__)
@@ -20,25 +22,33 @@ class ContentEnhancementPipeline:
     """Pipeline for enhancing content items with additional information.
 
     This pipeline processes content items to:
-    - Generate summaries
+    - Generate summaries (including multi-document and temporal summaries)
     - Extract key facts and entities
     - Calculate quality metrics
     - Apply content filters
+    - Perform cross-reference analysis
     """
 
-    def __init__(self, min_content_length: int = 100):
+    def __init__(self, min_content_length: int = 100, batch_size: int = 5):
         """Initialize the content enhancement pipeline.
 
         Args:
             min_content_length: Minimum content length to process
+            batch_size: Size of batches for multi-document processing
         """
         self.min_content_length = min_content_length
+        self.batch_size = batch_size
+        self.content_summarizer = ContentSummarizer()
+        self.advanced_summarizer = AdvancedSummarizer(self.content_summarizer)
+        self._content_buffer = []
+        self._metadata_buffer = []
 
     async def process_item(self, item: ContentItem) -> Optional[Dict]:
         """Process a single content item through the enhancement pipeline.
 
         Performs the full pipeline processing on a single content item,
         including validation, summarization, fact extraction, and quality scoring.
+        Also buffers content for multi-document analysis when appropriate.
 
         Args:
             item: Content item to process
@@ -51,11 +61,28 @@ class ContentEnhancementPipeline:
                 logger.warning(f"Content validation failed for item {item.id}")
                 return None
 
+            # Buffer the content for multi-document analysis
+            self._content_buffer.append(item.content)
+            self._metadata_buffer.append(
+                {
+                    "date": item.metadata.get("published_date"),
+                    "source": item.metadata.get("source"),
+                    "id": item.id,
+                }
+            )
+
+            # Process as batch if buffer is full
+            if len(self._content_buffer) >= self.batch_size:
+                multi_doc_summary = await self._process_multi_document()
+            else:
+                multi_doc_summary = None
+
+            # Generate single-document summary
             summary = await self._generate_summary(item.content)
             facts = await self._extract_facts(item.content)
             quality_score = self._calculate_quality_score(item, summary, facts)
 
-            return {
+            result = {
                 "id": item.id,
                 "title": item.title,
                 "url": item.url,
@@ -70,6 +97,27 @@ class ContentEnhancementPipeline:
                     "fact_count": len(facts),
                 },
             }
+
+            # Add multi-document analysis results if available
+            if multi_doc_summary:
+                result["multi_doc_analysis"] = {
+                    "common_themes": multi_doc_summary.common_themes,
+                    "cross_references": [
+                        ref
+                        for ref in multi_doc_summary.cross_references
+                        if ref["source_idx"] == len(self._content_buffer) - 1
+                    ],
+                    "timeline_position": next(
+                        (
+                            entry
+                            for entry in multi_doc_summary.timeline or []
+                            if entry.get("id") == item.id
+                        ),
+                        None,
+                    ),
+                }
+
+            return result
 
         except Exception as e:
             logger.error(f"Error processing item {item.id}: {str(e)}")
@@ -162,6 +210,31 @@ class ContentEnhancementPipeline:
         score += 0.3 * facts_score
 
         return round(score, 2)
+
+    async def _process_multi_document(self) -> Optional[Dict]:
+        """Process a batch of content items for multi-document analysis.
+
+        Performs advanced summarization, cross-reference analysis, and timeline
+        creation on a batch of content items.
+
+        Returns:
+            Multi-document analysis results or None if processing fails
+        """
+        try:
+            # Perform multi-document summarization
+            multi_doc_summary = await self.advanced_summarizer.summarize(
+                self._content_buffer, self._metadata_buffer
+            )
+
+            # Reset buffers
+            self._content_buffer = []
+            self._metadata_buffer = []
+
+            return multi_doc_summary
+
+        except Exception as e:
+            logger.error(f"Error processing multi-document analysis: {str(e)}")
+            return None
 
     def _find_source_context(self, fact: str, content: str) -> Optional[str]:
         """Find the context in the source content where a fact appears.

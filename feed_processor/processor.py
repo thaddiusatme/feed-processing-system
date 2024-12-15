@@ -65,7 +65,11 @@ class FeedProcessor:
         """
         self.content_queue = content_queue
         self.db = db
-        self.airtable_client = AirtableClient(airtable_config)
+        self.airtable_client = AirtableClient(
+            api_key=airtable_config.api_key,
+            base_id=airtable_config.base_id,
+            table_name=airtable_config.table_name,
+        )
         self.error_handler = error_handler
         self.batch_size = batch_size
         self.processing_interval = processing_interval
