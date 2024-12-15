@@ -1,4 +1,5 @@
-import time
+"""Unit tests for the WebhookManager class."""
+
 from unittest.mock import Mock, patch
 
 import pytest
@@ -7,17 +8,42 @@ import requests
 from feed_processor.webhook.manager import WebhookManager
 
 
+@pytest.fixture(autouse=True)
+def mock_metrics():
+    """Mock Prometheus metrics to prevent registration conflicts."""
+    with patch("feed_processor.webhook.manager.metrics") as mock_metrics:
+        # Create mock counters and histograms that do nothing
+        mock_counter = Mock()
+        mock_counter.inc = Mock()
+        mock_counter.labels = Mock(return_value=mock_counter)
+
+        mock_histogram = Mock()
+        mock_histogram.observe = Mock()
+
+        mock_gauge = Mock()
+        mock_gauge.set = Mock()
+
+        # Set up the mock metrics module
+        mock_metrics.register_counter.return_value = mock_counter
+        mock_metrics.register_histogram.return_value = mock_histogram
+        mock_metrics.register_gauge.return_value = mock_gauge
+        yield mock_metrics
+
+
 @pytest.fixture
 def webhook_manager():
+    """Create a WebhookManager instance for testing."""
     return WebhookManager(
         webhook_url="https://test-webhook.example.com/endpoint",
-        rate_limit=0.1,  # Shorter for testing
         max_retries=2,
+        retry_delay=0.1,  # Shorter for testing
+        batch_size=10,
     )
 
 
 @pytest.fixture
 def valid_payload():
+    """Create a valid webhook payload for testing."""
     return {
         "title": "Test Article",
         "contentType": ["BLOG"],
@@ -31,11 +57,13 @@ def valid_payload():
     }
 
 
-def test_validate_payload_success(webhook_manager, valid_payload):
+def test_validate_payload_success(webhook_manager, valid_payload, mock_metrics):
+    """Test that a valid payload passes validation."""
     assert webhook_manager._validate_payload(valid_payload) is True
 
 
-def test_validate_payload_missing_fields(webhook_manager):
+def test_validate_payload_missing_fields(webhook_manager, mock_metrics):
+    """Test that payload validation fails when required fields are missing."""
     invalid_payload = {
         "title": "Test",
         "contentType": ["BLOG"],
@@ -44,48 +72,53 @@ def test_validate_payload_missing_fields(webhook_manager):
     assert webhook_manager._validate_payload(invalid_payload) is False
 
 
-def test_validate_payload_invalid_content_type(webhook_manager, valid_payload):
+def test_validate_payload_invalid_content_type(webhook_manager, valid_payload, mock_metrics):
+    """Test that payload validation fails with invalid content type."""
     invalid_payload = valid_payload.copy()
     invalid_payload["contentType"] = ["INVALID_TYPE"]
     assert webhook_manager._validate_payload(invalid_payload) is False
 
 
-def test_validate_payload_title_too_long(webhook_manager, valid_payload):
+def test_validate_payload_title_too_long(webhook_manager, valid_payload, mock_metrics):
+    """Test that payload validation fails when title exceeds maximum length."""
     invalid_payload = valid_payload.copy()
     invalid_payload["title"] = "x" * 256
     assert webhook_manager._validate_payload(invalid_payload) is False
 
 
 @patch("requests.post")
-def test_send_webhook_success(mock_post, webhook_manager, valid_payload):
+def test_send_batch_success(mock_post, webhook_manager, valid_payload, mock_metrics):
+    """Test successful batch sending of webhooks."""
     mock_response = Mock()
     mock_response.status_code = 200
     mock_post.return_value = mock_response
 
-    response = webhook_manager.send_webhook(valid_payload)
+    response = webhook_manager.send_batch([valid_payload])
 
     assert response.success is True
     assert response.status_code == 200
-    assert response.error_id is None
     assert response.error_type is None
+    mock_post.assert_called_once()
 
 
 @patch("requests.post")
-def test_send_webhook_rate_limit(mock_post, webhook_manager, valid_payload):
+def test_send_batch_rate_limit(mock_post, webhook_manager, valid_payload, mock_metrics):
+    """Test handling of rate limiting in webhook sending."""
     mock_response = Mock()
     mock_response.status_code = 429
     mock_post.return_value = mock_response
 
-    response = webhook_manager.send_webhook(valid_payload)
+    response = webhook_manager.send_batch([valid_payload])
 
     assert response.success is False
     assert response.status_code == 429
-    assert response.error_type == "Exception"
-    assert "Rate limit exceeded" in str(response.error_id)
+    assert response.error_type == "rate_limited"
+    assert response.error_message == "Rate limit exceeded"
 
 
 @patch("requests.post")
-def test_send_webhook_server_error_retry(mock_post, webhook_manager, valid_payload):
+def test_send_batch_server_error_retry(mock_post, webhook_manager, valid_payload, mock_metrics):
+    """Test retry behavior on server errors."""
     error_response = Mock()
     error_response.status_code = 500
     success_response = Mock()
@@ -93,7 +126,7 @@ def test_send_webhook_server_error_retry(mock_post, webhook_manager, valid_paylo
 
     mock_post.side_effect = [error_response, success_response]
 
-    response = webhook_manager.send_webhook(valid_payload)
+    response = webhook_manager.send_batch([valid_payload])
 
     assert response.success is True
     assert response.status_code == 200
@@ -101,43 +134,56 @@ def test_send_webhook_server_error_retry(mock_post, webhook_manager, valid_paylo
 
 
 @patch("requests.post")
-def test_bulk_send(mock_post, webhook_manager):
+def test_send_items(mock_post, webhook_manager, valid_payload, mock_metrics):
+    """Test sending multiple items in batches."""
     mock_response = Mock()
     mock_response.status_code = 200
     mock_post.return_value = mock_response
 
-    payloads = [
-        {"title": f"Test Article {i}", "contentType": ["BLOG"], "brief": f"Test brief {i}"}
-        for i in range(3)
-    ]
+    # Create multiple valid payloads
+    items = [valid_payload.copy() for _ in range(25)]
+    responses = webhook_manager.send_items(items)
 
-    responses = webhook_manager.bulk_send(payloads)
-
+    # With batch_size=10, we expect 3 batches
     assert len(responses) == 3
     assert all(r.success for r in responses)
-    assert all(r.status_code == 200 for r in responses)
+    assert mock_post.call_count == 3
 
 
-def test_rate_limiting(webhook_manager, valid_payload):
+def test_batch_size_limit(webhook_manager, valid_payload, mock_metrics):
+    """Test that batches don't exceed the maximum size."""
+    items = [valid_payload.copy() for _ in range(15)]
+
     with patch("requests.post") as mock_post:
         mock_response = Mock()
         mock_response.status_code = 200
         mock_post.return_value = mock_response
 
-        start_time = time.time()
-        webhook_manager.bulk_send([valid_payload] * 3)
-        elapsed_time = time.time() - start_time
+        responses = webhook_manager.send_items(items)
 
-        # With rate_limit of 0.1s, 3 requests should take at least 0.2s
-        assert elapsed_time >= 0.2
+        # With batch_size=10, we expect 2 batches
+        assert len(responses) == 2
+        assert mock_post.call_count == 2
+
+        # First call should have 10 items, second should have 5
+        first_call_items = mock_post.call_args_list[0][1]["json"]["items"]
+        second_call_items = mock_post.call_args_list[1][1]["json"]["items"]
+        assert len(first_call_items) == 10
+        assert len(second_call_items) == 5
 
 
 @patch("requests.post")
-def test_connection_error_retry(mock_post, webhook_manager, valid_payload):
-    mock_post.side_effect = [requests.exceptions.ConnectionError(), Mock(status_code=200)]
+def test_connection_error_retry(mock_post, webhook_manager, valid_payload, mock_metrics):
+    """Test retry behavior on connection errors."""
+    mock_post.side_effect = [
+        requests.exceptions.ConnectionError("Network error"),
+        Mock(status_code=200),
+    ]
 
-    response = webhook_manager.send_webhook(valid_payload)
+    response = webhook_manager.send_batch([valid_payload])
 
     assert response.success is True
     assert response.status_code == 200
+    assert response.error_type is None
+    assert response.error_message is None
     assert mock_post.call_count == 2

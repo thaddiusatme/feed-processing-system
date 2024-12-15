@@ -11,8 +11,12 @@ import structlog
 
 from feed_processor.error_handling import ErrorHandler
 from feed_processor.metrics.prometheus import metrics
+from feed_processor.webhook.delivery_manager import WebhookDeliveryManager, WebhookResponse
+from feed_processor.webhook.tracing import TracingConfig, TracingManager
 
 logger = structlog.get_logger(__name__)
+
+__all__ = ["WebhookDeliveryManager", "WebhookResponse", "TracingManager", "TracingConfig"]
 
 
 @dataclass
@@ -24,18 +28,6 @@ class WebhookError(Exception):
     error_id: Optional[str] = None
     error_type: Optional[str] = None
     timestamp: str = datetime.now(timezone.utc).isoformat()
-
-
-@dataclass
-class WebhookResponse:
-    """Response data for webhook deliveries."""
-
-    success: bool
-    status_code: int
-    error_id: Optional[str] = None
-    error_type: Optional[str] = None
-    timestamp: str = datetime.now(timezone.utc).isoformat()
-    response_time: Optional[float] = None
 
 
 class WebhookManager:
@@ -82,17 +74,70 @@ class WebhookManager:
             "webhook_batch_size_current", "Current webhook batch size"
         )
 
-    def send_batch(self, items: List[Dict]) -> WebhookResponse:
+    def _validate_payload(self, payload: Dict) -> bool:
+        """Validate webhook payload.
+
+        Args:
+            payload: The payload to validate
+
+        Returns:
+            bool: True if valid, False otherwise
+        """
+        required_fields = ["title", "contentType", "brief"]
+        valid_content_types = ["BLOG"]
+
+        # Check required fields
+        if not all(field in payload for field in required_fields):
+            return False
+
+        # Validate content type
+        if not any(ct in valid_content_types for ct in payload["contentType"]):
+            return False
+
+        # Validate title length
+        if len(payload["title"]) > 255:
+            return False
+
+        return True
+
+    def send_items(self, items: List[Dict]) -> List[WebhookResponse]:
+        """Send items in batches.
+
+        Args:
+            items: List of items to send
+
+        Returns:
+            List[WebhookResponse]: List of responses for each batch
+        """
+        responses = []
+        for i in range(0, len(items), self.batch_size):
+            batch = items[i : i + self.batch_size]
+            response = self.send_batch(batch)
+            responses.append(response)
+        return responses
+
+    def send_batch(self, items: List[Dict], retry_count: int = 0) -> WebhookResponse:
         """Send a batch of items via webhook.
 
         Args:
             items: List of items to send
+            retry_count: Current retry attempt number
 
         Returns:
             WebhookResponse with delivery status
         """
         if not items:
             return WebhookResponse(success=True, status_code=200)
+
+        # Validate payloads
+        for item in items:
+            if not self._validate_payload(item):
+                return WebhookResponse(
+                    success=False,
+                    status_code=400,
+                    error_type="invalid_payload",
+                    error_message="Invalid payload",
+                )
 
         self.batch_size_gauge.set(len(items))
         start_time = time.time()
@@ -114,8 +159,13 @@ class WebhookManager:
                     success=False,
                     status_code=429,
                     error_type="rate_limited",
+                    error_message="Rate limit exceeded",
                     response_time=duration,
                 )
+
+            if response.status_code >= 500 and retry_count < self.max_retries:
+                time.sleep(self.retry_delay * (2**retry_count))  # Exponential backoff
+                return self.send_batch(items, retry_count + 1)
 
             response.raise_for_status()
             self.webhook_counter.labels(status="success").inc()
@@ -130,55 +180,17 @@ class WebhookManager:
             duration = time.time() - start_time
             self.webhook_counter.labels(status="failed").inc()
 
-            error_id = f"webhook_error_{int(time.time())}"
-            if self.error_handler:
-                self.error_handler.handle_error(e, error_id=error_id)
+            if retry_count < self.max_retries:
+                time.sleep(self.retry_delay * (2**retry_count))  # Exponential backoff
+                return self.send_batch(items, retry_count + 1)
+
+            error_type = "request_failed"
+            error_message = str(e)
 
             return WebhookResponse(
                 success=False,
                 status_code=getattr(e.response, "status_code", 500),
-                error_id=error_id,
-                error_type="request_failed",
+                error_type=error_type,
+                error_message=error_message,
                 response_time=duration,
             )
-
-    def send_with_retry(self, items: List[Dict], retry_count: int = 0) -> WebhookResponse:
-        """Send items with retry logic.
-
-        Args:
-            items: List of items to send
-            retry_count: Current retry attempt number
-
-        Returns:
-            WebhookResponse with final delivery status
-        """
-        response = self.send_batch(items)
-
-        if not response.success and retry_count < self.max_retries:
-            self.retry_counter.inc()
-            time.sleep(self.retry_delay * (2**retry_count))
-            return self.send_with_retry(items, retry_count + 1)
-
-        return response
-
-    def send_items(self, items: List[Dict]) -> List[WebhookResponse]:
-        """Send items in batches with retries.
-
-        Args:
-            items: List of items to send
-
-        Returns:
-            List of WebhookResponses for each batch
-        """
-        if not items:
-            return []
-
-        responses = []
-        for i in range(0, len(items), self.batch_size):
-            batch = items[i : i + self.batch_size]
-            response = self.send_with_retry(batch)
-            responses.append(response)
-            if not response.success:
-                break
-
-        return responses

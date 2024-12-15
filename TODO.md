@@ -215,6 +215,15 @@
   - [x] Enhance webhook status reporting
   - [x] Improve error handling in async routes
 
+- [x] Webhook Tracing System
+  - [x] Implement distributed tracing with OpenTelemetry
+  - [x] Add trace context propagation
+  - [x] Fix trace context injection in headers
+  - [x] Add retry span handling
+  - [x] Add queue processing span handling
+  - [x] Update tests for tracing functionality
+  - [ ] Migrate from Jaeger to OTLP exporter
+
 ## HIGH PRIORITY (80% Impact)
 ### Core Feed Processing Pipeline
 - [x] Implement 5-minute detection window
@@ -282,10 +291,10 @@
 
 ## IN PROGRESS
 - [ ] Test Suite Updates
-  - [ ] Update test_feed_processor.py to handle async/await
-  - [ ] Fix method name mismatches (_process_item vs process_item)
-  - [ ] Update ContentQueue test usage (add vs put)
-  - [ ] Add proper async test fixtures
+  - [x] Update test_feed_processor.py to handle async/await
+  - [x] Fix method name mismatches (_process_item vs process_item)
+  - [x] Update ContentQueue test usage (add vs put)
+  - [x] Add proper async test fixtures
   - [ ] Update WebhookManager mock (send_batch vs send_webhook)
 
 ## MEDIUM PRIORITY
@@ -323,6 +332,39 @@
     - [ ] Define maintenance schedule
     - [ ] Create maintenance scripts
     - [ ] Add monitoring and alerts
+
+## COMPLETED
+- [x] Fix async test suite
+- [x] Add proper field validation for ContentItem
+- [x] Implement basic feed processing pipeline
+- [x] Set up error handling and logging
+- [x] Add metrics collection
+- [x] Integrate with Airtable for storage
+- [x] Add comprehensive logging for debugging
+- [x] Fix ContentItem model field validation
+- [x] Update test assertions for mocked dependencies
+- [x] Add proper async mocking for AirtableClient
+- [x] Improve error handling in _get_batch method
+- [x] Update WebhookManager tests to use send_batch method
+- [x] Fix metric registration conflicts in tests
+- [x] Implement proper retry logic for webhook delivery
+- [x] Add payload validation in WebhookManager
+- [x] Update error handling in webhook delivery
+
+## HIGH PRIORITY
+- [ ] Implement content deduplication logic
+- [ ] Add rate limiting for external API calls
+- [ ] Set up monitoring and alerting for critical errors
+
+## MEDIUM PRIORITY
+- [ ] Add support for additional feed formats
+- [ ] Implement caching layer for frequently accessed content
+- [ ] Add content categorization using NLP
+
+## LOW PRIORITY
+- [ ] Add support for custom webhook payload formats
+- [ ] Implement webhook delivery statistics dashboard
+- [ ] Add support for webhook signature verification
 
 ## Notes
 - URGENT: Implement Content Enhancement Pipeline as specified in the new architecture

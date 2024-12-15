@@ -461,6 +461,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Enhanced error handling for network and HTTP errors
   - Added comprehensive retry tracking and metrics
   - Improved response handling with detailed status information
+- Added `id` and `content` fields to `ContentItem` model
+- Added comprehensive logging throughout `FeedProcessor` class for better debugging
+- Added proper async mocking for `AirtableClient` in tests
+- Payload validation in WebhookManager with field checks for title, contentType, and brief
+- Comprehensive retry logic for server errors and connection issues in webhook delivery
+- Batch processing capability in WebhookManager with configurable batch sizes
 
 ### Changed
 - Code Organization:
@@ -525,6 +531,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
      )
      ```
 
+- Updated WebhookManager to use error_type and error_message instead of error_id
+- Improved error handling in webhook delivery with specific error types
+- Enhanced test suite for WebhookManager with better coverage of edge cases
+
 ### Fixed
 - Test suite performance and reliability issues
   - Eliminated dependency on real NLP model downloads
@@ -534,3 +544,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added MockSummarizer class for consistent test behavior
   - Improved test data with clear semantic relationships
   - Enhanced cross-reference similarity calculation
+- Fixed `test_process_batch` test by properly handling async operations
+- Fixed `test_feed_processor_initialization` to work with mocked objects
+- Fixed `ContentItem` model field validation
+- Updated test assertions to work with mocked dependencies
+- Modified feed processor test fixture to use appropriate batch size
+- Improved error handling and logging in `_get_batch` method
+- Resolved metric registration conflicts in WebhookManager tests
+- Fixed retry logic in webhook delivery to properly handle rate limiting
+- Corrected batch processing to maintain proper payload validation
+
+## [0.1.0] - 2024-12-15
+
+### Added
+- Initial implementation of feed processing system
+- Integration with Inoreader API
+- Basic content processing and storage
+- Error handling and metrics collection
