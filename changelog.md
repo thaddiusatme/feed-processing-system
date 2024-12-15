@@ -561,3 +561,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Integration with Inoreader API
 - Basic content processing and storage
 - Error handling and metrics collection
+
+### Lessons Learned
+
+#### Testing
+- Mock Prometheus metrics in tests to prevent registration conflicts and ensure test isolation
+- Use descriptive test names and comprehensive docstrings to improve test maintainability
+- Test both success and error cases thoroughly, including edge cases like rate limiting and network errors
+- Keep test retry delays short to maintain fast test execution while still testing retry logic
+
+#### Error Handling
+- Use specific error types and messages instead of generic error IDs for better debugging
+- Implement exponential backoff in retry logic to handle transient failures gracefully
+- Validate payloads early to fail fast and provide clear error messages
+- Keep error handling consistent across the codebase to improve maintainability
+
+#### Code Organization
+- Separate validation logic into dedicated methods for better code organization
+- Use dataclasses for structured responses to ensure consistent error reporting
+- Keep batch processing configurable to handle different load scenarios
+- Implement metrics to monitor system health and performance
+
+#### Best Practices
+- Document public interfaces thoroughly with docstrings
+- Use type hints consistently for better code maintainability
+- Follow the Single Responsibility Principle when designing classes and methods
+- Keep configuration values (like batch sizes and retry delays) configurable through constructor parameters
