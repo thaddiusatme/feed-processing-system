@@ -1,0 +1,23 @@
+{
+    "fetch_interval_seconds": 300,
+    "feeds": [
+        {
+            "url": "https://news.ycombinator.com/rss",
+            "name": "Hacker News",
+            "content_type": "BLOG"
+        },
+        {
+            "url": "https://techcrunch.com/feed/",
+            "name": "TechCrunch",
+            "content_type": "BLOG"
+        },
+        {
+            "url": "https://www.theverge.com/rss/index.xml",
+            "name": "The Verge",
+            "content_type": "BLOG"
+        }
+    ],
+    "max_items_per_fetch": 30,
+    "retry_interval_seconds": 60,
+    "log_level": "INFO"
+}
