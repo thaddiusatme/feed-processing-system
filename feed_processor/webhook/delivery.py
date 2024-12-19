@@ -1,13 +1,27 @@
 """Webhook delivery system with rate limiting and retries."""
 
 import time
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse
 
 import requests
 import structlog
 
 from feed_processor.metrics.prometheus import metrics
+from feed_processor.webhook.rate_limiter import EndpointRateLimiter, RateLimitConfig
+
+
+@dataclass
+class WebhookResponse:
+    """Response from a webhook delivery attempt."""
+
+    success: bool
+    status_code: Optional[int] = None
+    error_message: Optional[str] = None
+    retry_after: Optional[int] = None
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class WebhookDeliverySystem:
@@ -38,8 +52,15 @@ class WebhookDeliverySystem:
         self.max_retries = max_retries
         self.retry_delay = retry_delay
         self.batch_size = batch_size
-        self.last_delivery_time = 0
         self.logger = structlog.get_logger(__name__)
+
+        # Initialize rate limiter
+        config = RateLimitConfig(requests_per_second=1.0 / rate_limit)
+        self.rate_limiter = EndpointRateLimiter(default_config=config)
+
+        # Extract endpoint from webhook URL for rate limiting
+        parsed_url = urlparse(webhook_url)
+        self.endpoint = f"{parsed_url.netloc}{parsed_url.path}"
 
         # Track delivery status
         self.delivery_status: Dict[str, Dict[str, Any]] = {}
@@ -60,11 +81,9 @@ class WebhookDeliverySystem:
 
     def _wait_for_rate_limit(self):
         """Enforce rate limiting between deliveries."""
-        now = time.time()
-        elapsed = now - self.last_delivery_time
-        if elapsed < self.rate_limit:
-            time.sleep(self.rate_limit - elapsed)
-        self.last_delivery_time = time.time()
+        wait_time = self.rate_limiter.acquire(self.endpoint)
+        if wait_time > 0:
+            time.sleep(wait_time)
 
     def deliver_batch(self, items: List[Dict[str, Any]], retry_count: int = 0) -> bool:
         """Deliver a batch of items via webhook.

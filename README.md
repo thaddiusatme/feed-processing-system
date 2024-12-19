@@ -71,6 +71,36 @@ A robust and scalable system for processing RSS/Atom feeds with webhook delivery
   - Data validation
   - Error handling
 
+## Current Development Status
+
+### High Priority Items (In Progress)
+
+#### 1. Webhook Delivery System
+- [ ] Rate limiting implementation (0.2s)
+- [ ] Retry mechanism with exponential backoff
+- [ ] Delivery queue manager
+- [ ] Circuit breaker implementation
+
+#### 2. Core Error Handling & Monitoring
+- [ ] Basic error handling system
+- [ ] Error tracking and logging
+- [ ] Critical error alerts
+- [ ] Performance monitoring
+
+#### 3. Content Analysis Core Features
+- [ ] Entity detection fixes
+- [ ] Basic keyword extraction improvements
+- [ ] Technology category identification
+- [ ] Content validation enhancements
+
+### Future Enhancements
+
+#### Multilingual Topic Analysis
+- Support for multiple languages (English, Spanish, French)
+- Cross-lingual topic alignment
+- Similarity scoring across languages
+- Language-specific NLP processing pipelines
+
 ## Requirements
 
 - Python 3.12+
@@ -229,6 +259,19 @@ Monitor the pipeline using:
 - Prometheus metrics at http://localhost:9090
 - Structured logs in JSON format
 - Airtable dashboard for stored content
+
+## Development Guidelines
+
+### Test-Driven Development
+- All new features must have corresponding test cases
+- Tests should be written before implementation
+- Current test coverage: ~85%
+
+### Code Quality Standards
+- Follow PEP 8 style guide
+- Documentation required for all new features
+- Code review required for all PRs
+- Regular dependency updates
 
 ## Documentation
 
