@@ -211,3 +211,59 @@
    - **Important**: Virtual environment setup is crucial for consistent testing
    - **Note**: Keep requirements.txt updated with new dependencies
    - **Reminder**: Use absolute paths when running commands in virtual environments
+
+## Topic Analysis System
+
+### Clustering Approaches
+1. **Generic vs. Custom Solutions**
+   - DBSCAN, while powerful, may not always be the best choice for specific use cases
+   - Custom clustering approaches can provide better control over desired outcomes
+   - Important to consider domain-specific requirements when choosing clustering methods
+
+2. **Small Document Sets**
+   - Traditional clustering algorithms often struggle with small document sets
+   - Need to adjust parameters and thresholds based on document set size
+   - Custom approaches may work better for ensuring desired behavior with small sets
+
+3. **Topic Diversity**
+   - Maintaining topic diversity is crucial for meaningful analysis
+   - Important to balance between merging similar topics and preserving distinct ones
+   - Consider both document similarity and keyword overlap when grouping topics
+
+### Similarity Metrics
+1. **Keyword Matching**
+   - Combining multiple similarity metrics (exact + partial) provides better results
+   - Important to consider both full matches and substring relationships
+   - Weighting different types of matches can help fine-tune relationships
+
+2. **Document Vectors**
+   - TF-IDF with appropriate parameters works well for document representation
+   - Important to handle edge cases (empty documents, single-term documents)
+   - Cosine similarity provides reliable results for document comparison
+
+### Testing Insights
+1. **Test Case Design**
+   - Important to test with various document set sizes
+   - Edge cases (single document, similar documents) need special attention
+   - Test data should cover different topic relationship scenarios
+
+2. **Parameter Tuning**
+   - Different thresholds needed for different operations (clustering, similarity)
+   - Important to document why specific threshold values were chosen
+   - Consider making thresholds configurable for different use cases
+
+### Best Practices
+1. **Code Organization**
+   - Keep clustering logic separate from topic extraction
+   - Use clear naming for different similarity metrics
+   - Document parameter choices and their impact
+
+2. **Performance Considerations**
+   - Vector operations can be computationally expensive
+   - Consider caching intermediate results
+   - Balance between accuracy and performance
+
+3. **Maintainability**
+   - Document key decisions and their rationale
+   - Make thresholds and parameters easily configurable
+   - Keep related functionality grouped together

@@ -296,6 +296,38 @@
   - [x] Update ContentQueue test usage (add vs put)
   - [x] Add proper async test fixtures
   - [ ] Update WebhookManager mock (send_batch vs send_webhook)
+- [ ] Content Analysis System Fixes
+  - [ ] NLP Pipeline
+    - [ ] Fix entity detection returning empty results
+    - [ ] Improve keyword extraction
+    - [ ] Enhance entity recognition
+    - [ ] Integrate properly with categorizer
+
+  - [ ] Content Categorizer
+    - [ ] Fix technology category identification
+    - [ ] Improve confidence scores (threshold 0.7)
+    - [ ] Enhance category matching for mixed content
+    - [ ] Fix taxonomy initialization
+    - [ ] Add proper error handling and logging
+
+  - [ ] Sentiment Analysis
+    - [ ] Fix entity sentiment comparison (Apple vs Microsoft)
+    - [ ] Fix aspect sentiment polarity
+    - [ ] Improve mixed sentiment detection
+    - [ ] Add better sentiment boosting
+
+  - [ ] Topic Analysis
+    - [ ] Fix Python-related topic detection
+    - [ ] Implement emerging topics detection
+    - [ ] Add related topics functionality
+    - [ ] Fix topic coherence calculation
+    - [ ] Handle numeric keywords properly
+
+  - [ ] Infrastructure
+    - [ ] Fix metrics setup and imports
+    - [ ] Improve error handling
+    - [ ] Add comprehensive logging
+    - [ ] Update test cases
 
 ## MEDIUM PRIORITY
 - [ ] Advanced Features
@@ -372,3 +404,35 @@
 - Ensure robust error handling and monitoring from day one
 - Consider scalability in the initial implementation
 - Monitor system resources during implementation of new features
+
+## Topic Analysis
+### Completed
+- [x] Fix topic modeling tests
+- [x] Improve clustering for small document sets
+- [x] Enhance related topics detection
+- [x] Fix emerging topics detection
+- [x] Improve topic diversity in results
+
+### High Priority
+- [ ] Add performance benchmarks for topic analysis
+- [ ] Implement caching for frequently accessed topics
+- [ ] Add support for incremental topic updates
+- [ ] Optimize memory usage for large document sets
+
+### Medium Priority
+- [ ] Add visualization support for topic relationships
+- [ ] Implement topic hierarchy detection
+- [ ] Add support for topic merging over time
+- [ ] Improve topic naming with more descriptive labels
+
+### Low Priority
+- [ ] Add support for multi-language topic analysis
+- [ ] Implement topic sentiment analysis
+- [ ] Add topic timeline visualization
+- [ ] Create topic recommendation system
+
+### Future Enhancements
+- [ ] Consider alternative clustering algorithms for specific use cases
+- [ ] Add support for dynamic topic modeling
+- [ ] Implement real-time topic tracking
+- [ ] Add topic drift detection
